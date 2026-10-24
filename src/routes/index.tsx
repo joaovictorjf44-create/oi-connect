@@ -231,7 +231,7 @@ function FinanceDashboard() {
   const reportMovements = movements.slice().sort((a, b) => b.date.localeCompare(a.date));
 
   function cloudConfig() {
-    const env = import.meta.env as Record<string, string | undefined>;
+    const env = import.meta.env;
     return { url: (env.VITE_SUPABASE_URL || "").replace(/\/$/, ""), key: env.VITE_SUPABASE_ANON_KEY || "" };
   }
 
