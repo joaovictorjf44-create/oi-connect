@@ -62,6 +62,8 @@ const BILLS_STORAGE_KEY = "gestao-financeira-pra-mim-recurring-bills";
 const BUDGETS_STORAGE_KEY = "gestao-financeira-pra-mim-budgets";
 const ACCOUNTS_STORAGE_KEY = "gestao-financeira-pra-mim-accounts";
 const DEFAULT_ACCOUNTS = ["Conta principal", "Carteira", "Banco", "Poupança"];
+const CLOUD_SESSION_KEY = "gestao-financeira-pra-mim-cloud-session";
+type CloudSession = { access_token: string; refresh_token?: string; user: { id: string; email?: string } };
 const money = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const todayISO = () => {
@@ -109,6 +111,11 @@ function FinanceDashboard() {
   const [newAccount, setNewAccount] = useState("");
   const [selectedAccount, setSelectedAccount] = useState("Conta principal");
   const [backupMessage, setBackupMessage] = useState("");
+  const [cloudEmail, setCloudEmail] = useState("");
+  const [cloudPassword, setCloudPassword] = useState("");
+  const [cloudSession, setCloudSession] = useState<CloudSession | null>(null);
+  const [cloudMessage, setCloudMessage] = useState("");
+  const [cloudBusy, setCloudBusy] = useState(false);
   const [debtName, setDebtName] = useState("");
   const [debtCreditor, setDebtCreditor] = useState("");
   const [debtAmount, setDebtAmount] = useState("");
@@ -143,6 +150,10 @@ function FinanceDashboard() {
       const savedAccounts = localStorage.getItem(ACCOUNTS_STORAGE_KEY);
       if (savedAccounts) setAccounts(JSON.parse(savedAccounts) as string[]);
     } catch { setAccounts(DEFAULT_ACCOUNTS); }
+    try {
+      const session = localStorage.getItem(CLOUD_SESSION_KEY);
+      if (session) setCloudSession(JSON.parse(session) as CloudSession);
+    } catch { localStorage.removeItem(CLOUD_SESSION_KEY); }
     setLoaded(true);
   }, []);
 
@@ -218,6 +229,97 @@ function FinanceDashboard() {
       .reduce((sum, m) => sum + (m.type === "entrada" ? m.amount : -m.amount), 0),
   }));
   const reportMovements = movements.slice().sort((a, b) => b.date.localeCompare(a.date));
+
+  function cloudConfig() {
+    const env = import.meta.env as Record<string, string | undefined>;
+    return { url: (env.VITE_SUPABASE_URL || "").replace(/\/$/, ""), key: env.VITE_SUPABASE_ANON_KEY || "" };
+  }
+
+  async function cloudRequest(path: string, init: RequestInit = {}, token?: string) {
+    const config = cloudConfig();
+    if (!config.url || !config.key) throw new Error("Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no projeto para ativar a nuvem.");
+    const response = await fetch(config.url + path, {
+      ...init,
+      headers: {
+        apikey: config.key,
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: "Bearer " + token } : {}),
+        ...(init.headers || {}),
+      },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.msg || payload.message || payload.error_description || payload.error || "Falha ao comunicar com a nuvem.");
+    return payload;
+  }
+
+  async function authenticateCloud(mode: "login" | "signup") {
+    setCloudBusy(true); setCloudMessage("");
+    try {
+      const result = await cloudRequest(mode === "login" ? "/auth/v1/token?grant_type=password" : "/auth/v1/signup", {
+        method: "POST",
+        body: JSON.stringify({ email: cloudEmail.trim(), password: cloudPassword }),
+      }) as CloudSession & { message?: string; identities?: unknown[] };
+      if (!result.access_token || !result.user?.id) {
+        setCloudMessage(mode === "signup" ? "Cadastro enviado. Se a confirmação por e-mail estiver ativada no Supabase, confirme seu e-mail e depois entre." : "Não foi possível entrar. Confira os dados e a configuração do Supabase.");
+        return;
+      }
+      setCloudSession(result);
+      localStorage.setItem(CLOUD_SESSION_KEY, JSON.stringify(result));
+      setCloudMessage("Conta conectada. Use “Sincronizar agora” para enviar ou recuperar seus dados.");
+    } catch (error) {
+      setCloudMessage(error instanceof Error ? error.message : "Não foi possível conectar.");
+    } finally { setCloudBusy(false); }
+  }
+
+  async function syncCloud() {
+    if (!cloudSession) { setCloudMessage("Entre na sua conta antes de sincronizar."); return; }
+    setCloudBusy(true); setCloudMessage("");
+    try {
+      const rows = await cloudRequest("/rest/v1/finance_snapshots?select=data&user_id=eq." + encodeURIComponent(cloudSession.user.id) + "&limit=1", { method: "GET" }, cloudSession.access_token) as Array<{ data: { movements?: Movement[]; debts?: Debt[]; goals?: SavingsGoal[]; bills?: RecurringBill[]; budgets?: Budget[]; accounts?: string[] } }>;
+      if (rows.length && rows[0].data) {
+        const data = rows[0].data;
+        setMovements(Array.isArray(data.movements) ? data.movements : []);
+        setDebts(Array.isArray(data.debts) ? data.debts : []);
+        setGoals(Array.isArray(data.goals) ? data.goals : []);
+        setBills(Array.isArray(data.bills) ? data.bills : []);
+        setBudgets(Array.isArray(data.budgets) ? data.budgets : []);
+        setAccounts(Array.isArray(data.accounts) && data.accounts.length ? data.accounts : DEFAULT_ACCOUNTS);
+        setCloudMessage("Dados recuperados da nuvem. Para enviar alterações futuras, sincronize novamente.");
+      } else {
+        const data = { movements, debts, goals, bills, budgets, accounts };
+        await cloudRequest("/rest/v1/finance_snapshots?on_conflict=user_id", {
+          method: "POST",
+          headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+          body: JSON.stringify({ user_id: cloudSession.user.id, data, updated_at: new Date().toISOString() }),
+        }, cloudSession.access_token);
+        setCloudMessage("Seus dados atuais foram enviados para a nuvem.");
+      }
+    } catch (error) {
+      setCloudMessage(error instanceof Error ? error.message : "Falha na sincronização. Verifique as instruções do Supabase.");
+    } finally { setCloudBusy(false); }
+  }
+
+  async function pushCloudChanges() {
+    if (!cloudSession) return;
+    setCloudBusy(true); setCloudMessage("");
+    try {
+      const data = { movements, debts, goals, bills, budgets, accounts };
+      await cloudRequest("/rest/v1/finance_snapshots?on_conflict=user_id", {
+        method: "POST",
+        headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+        body: JSON.stringify({ user_id: cloudSession.user.id, data, updated_at: new Date().toISOString() }),
+      }, cloudSession.access_token);
+      setCloudMessage("Sincronização concluída. Seus dados estão salvos na nuvem.");
+    } catch (error) {
+      setCloudMessage(error instanceof Error ? error.message : "Falha ao enviar dados.");
+    } finally { setCloudBusy(false); }
+  }
+
+  function logoutCloud() {
+    setCloudSession(null);
+    localStorage.removeItem(CLOUD_SESSION_KEY);
+    setCloudMessage("Você saiu da conta. Seus dados locais continuam neste navegador.");
+  }
 
   function downloadFile(filename: string, content: string, mimeType: string) {
     const blob = new Blob([content], { type: mimeType });
@@ -559,7 +661,17 @@ function FinanceDashboard() {
               <button onClick={exportCsv} className="rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-200"><FileSpreadsheet size={16} className="mr-1 inline" /> Exportar relatório CSV</button>
             </div>
             {backupMessage && <p className="mt-3 text-sm text-cyan-300" role="status">{backupMessage}</p>}
-            <div className="mt-5 rounded-xl border border-amber-400/20 bg-amber-400/5 p-4"><p className="flex items-center gap-2 font-semibold text-amber-200"><Cloud size={17} /> Login e sincronização na nuvem</p><p className="mt-1 text-sm text-slate-300">Ainda não conectado. Para sincronizar com segurança entre dispositivos, falta configurar um serviço de autenticação e banco de dados (por exemplo, Supabase) e suas chaves de ambiente. Até lá, os dados permanecem neste navegador; use o backup para protegê-los.</p></div>
+            <div className="mt-5 rounded-xl border border-blue-400/20 bg-[#080f1e] p-4 sm:p-5">
+              <p className="flex items-center gap-2 font-semibold text-cyan-200"><Cloud size={18} /> Login e sincronização na nuvem</p>
+              <p className="mt-1 text-sm text-slate-400">Conecte sua conta para guardar seu financeiro no Supabase e acessar em outros dispositivos. Primeiro, configure as chaves e o banco conforme o arquivo SUPABASE_SETUP.md no GitHub.</p>
+              {cloudSession ? <div className="mt-4"><p className="text-sm text-emerald-300">Conectado como {cloudSession.user.email || "sua conta"}</p><div className="mt-3 flex flex-wrap gap-2"><button disabled={cloudBusy} onClick={syncCloud} className="rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"><Cloud size={16} className="mr-1 inline" /> {cloudBusy ? "Sincronizando..." : "Sincronizar / recuperar"}</button><button disabled={cloudBusy} onClick={pushCloudChanges} className="rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-200 disabled:opacity-50">Enviar alterações atuais</button><button disabled={cloudBusy} onClick={logoutCloud} className="rounded-xl border border-slate-700 px-4 py-3 text-sm text-slate-300">Sair</button></div></div> : <form onSubmit={(e) => { e.preventDefault(); void authenticateCloud("login"); }} className="mt-4 grid gap-3 sm:grid-cols-2">
+                <label className="text-sm text-slate-300">E-mail<input required type="email" autoComplete="email" value={cloudEmail} onChange={(e) => setCloudEmail(e.target.value)} placeholder="voce@email.com" className="mt-1 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400" /></label>
+                <label className="text-sm text-slate-300">Senha<input required type="password" autoComplete="current-password" minLength={6} value={cloudPassword} onChange={(e) => setCloudPassword(e.target.value)} placeholder="Mínimo 6 caracteres" className="mt-1 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400" /></label>
+                <div className="flex flex-wrap gap-2 sm:col-span-2"><button disabled={cloudBusy} className="rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{cloudBusy ? "Aguarde..." : "Entrar"}</button><button type="button" disabled={cloudBusy} onClick={() => void authenticateCloud("signup")} className="rounded-xl border border-blue-400/25 bg-blue-500/10 px-4 py-3 text-sm font-semibold text-blue-200 disabled:opacity-50">Criar conta</button></div>
+              </form>}
+              {cloudMessage && <p className="mt-3 text-sm text-cyan-300" role="status">{cloudMessage}</p>}
+              <p className="mt-3 text-xs text-slate-500">A sincronização é manual: recupere a nuvem ao entrar em outro dispositivo e envie as alterações quando terminar. Faça backup antes de substituir dados.</p>
+            </div>
           </section>
 
           <section id="minhas-dividas" className="scroll-mt-6 rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 shadow-[0_0_32px_rgba(8,145,178,0.08)] sm:p-6">
