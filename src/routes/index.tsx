@@ -39,11 +39,22 @@ const todayISO = () => {
   const now = new Date();
   return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 };
+const shiftISODate = (iso: string, days: number) => {
+  const date = new Date(iso + "T12:00:00");
+  date.setDate(date.getDate() + days);
+  return date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") + "-" + String(date.getDate()).padStart(2, "0");
+};
+const weekStartISO = () => {
+  const today = todayISO();
+  const day = new Date(today + "T12:00:00").getDay();
+  return shiftISODate(today, -((day + 6) % 7));
+};
+const weekEndISO = () => shiftISODate(weekStartISO(), 6);
 
 function FinanceDashboard() {
   const [movements, setMovements] = useState<Movement[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [period, setPeriod] = useState<"today" | "month" | "all">("today");
+  const [period, setPeriod] = useState<"today" | "week" | "month" | "all">("today");
   const [modal, setModal] = useState<"entrada" | "saida" | null>(null);
   const [description, setDescription] = useState("Corte de cabelo");
   const [amount, setAmount] = useState("30");
@@ -85,6 +96,7 @@ function FinanceDashboard() {
 
   const filtered = useMemo(() => movements.filter((item) => {
     if (period === "today") return item.date === todayISO();
+    if (period === "week") return item.date >= weekStartISO() && item.date <= weekEndISO();
     if (period === "month") return item.date.slice(0, 7) === todayISO().slice(0, 7);
     return true;
   }), [movements, period]);
@@ -99,6 +111,22 @@ function FinanceDashboard() {
   const avg = cuts ? filtered.filter((m) => m.type === "entrada" && m.category === "Corte").reduce((sum, m) => sum + m.amount, 0) / cuts : 0;
   const monthIncome = movements.filter((m) => m.type === "entrada" && m.date.slice(0, 7) === todayISO().slice(0, 7)).reduce((sum, m) => sum + m.amount, 0);
   const monthExpenses = movements.filter((m) => m.type === "saida" && m.date.slice(0, 7) === todayISO().slice(0, 7)).reduce((sum, m) => sum + m.amount, 0);
+  const weeklyMovements = movements.filter((m) => m.date >= weekStartISO() && m.date <= weekEndISO());
+  const weeklyIncome = weeklyMovements.filter((m) => m.type === "entrada").reduce((sum, m) => sum + m.amount, 0);
+  const weeklyExpenses = weeklyMovements.filter((m) => m.type === "saida").reduce((sum, m) => sum + m.amount, 0);
+  const weeklyBalance = weeklyIncome - weeklyExpenses;
+  const weeklyDays = useMemo(() => Array.from({ length: 7 }, (_, index) => {
+    const dayDate = shiftISODate(weekStartISO(), index);
+    const dayMovements = movements.filter((m) => m.date === dayDate);
+    return {
+      date: dayDate,
+      label: new Date(dayDate + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", ""),
+      income: dayMovements.filter((m) => m.type === "entrada").reduce((sum, m) => sum + m.amount, 0),
+      expenses: dayMovements.filter((m) => m.type === "saida").reduce((sum, m) => sum + m.amount, 0),
+      count: dayMovements.length,
+    };
+  }), [movements]);
+  const weeklyMax = Math.max(1, ...weeklyDays.flatMap((day) => [day.income, day.expenses]));
 
   const monthlyTrend = useMemo(() => {
     const now = new Date();
@@ -220,6 +248,21 @@ function FinanceDashboard() {
             <StatCard label="Cortes registrados" value={String(cuts)} icon={<Scissors size={20} />} tint="purple" caption={cuts ? `Média por corte: ${money(avg)}` : "Comece registrando um corte"} />
           </div>
 
+          <section className="rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 shadow-[0_0_32px_rgba(8,145,178,0.08)] sm:p-6">
+            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+              <div><div className="flex items-center gap-2 text-cyan-300"><CalendarClock size={21} /><span className="text-xs font-bold uppercase tracking-[0.18em]">Fechamento semanal</span></div><h3 className="mt-2 text-xl font-bold">Total de lançamentos da semana</h3><p className="mt-1 text-sm text-slate-400">{new Date(weekStartISO() + "T12:00:00").toLocaleDateString("pt-BR")} até {new Date(weekEndISO() + "T12:00:00").toLocaleDateString("pt-BR")} · de segunda a domingo</p></div>
+              <button onClick={() => setPeriod("week")} className="rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-2.5 text-sm font-semibold text-cyan-200 hover:bg-cyan-400/15">Ver lançamentos da semana</button>
+            </div>
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-xl border border-blue-400/15 bg-[#080f1e] p-4"><p className="text-xs text-slate-400">Entradas da semana</p><p className="mt-1 text-xl font-bold text-emerald-300">{money(weeklyIncome)}</p></div>
+              <div className="rounded-xl border border-blue-400/15 bg-[#080f1e] p-4"><p className="text-xs text-slate-400">Saídas da semana</p><p className="mt-1 text-xl font-bold text-rose-300">{money(weeklyExpenses)}</p></div>
+              <div className="rounded-xl border border-blue-400/15 bg-[#080f1e] p-4"><p className="text-xs text-slate-400">Resultado semanal</p><p className={"mt-1 text-xl font-bold " + (weeklyBalance >= 0 ? "text-cyan-300" : "text-rose-300")}>{money(weeklyBalance)}</p></div>
+              <div className="rounded-xl border border-blue-400/15 bg-[#080f1e] p-4"><p className="text-xs text-slate-400">Lançamentos registrados</p><p className="mt-1 text-xl font-bold text-white">{weeklyMovements.length}</p><p className="mt-1 text-xs text-slate-500">{weeklyMovements.filter((m) => m.type === "entrada").length} entradas · {weeklyMovements.filter((m) => m.type === "saida").length} saídas</p></div>
+            </div>
+            <div className="mt-6"><div className="mb-3 flex items-center justify-between"><h4 className="font-semibold">Movimento por dia</h4><div className="flex gap-3 text-xs text-slate-400"><span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-400" /> Entradas</span><span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-rose-400" /> Saídas</span></div></div>
+              <div className="grid grid-cols-7 gap-2 sm:gap-3">{weeklyDays.map((day) => <div key={day.date} className="min-w-0 rounded-xl bg-[#080f1e]/80 p-2 text-center sm:p-3"><p className="text-[10px] font-semibold uppercase text-slate-400 sm:text-xs">{day.label}</p><p className="mt-1 text-[10px] text-slate-500">{new Date(day.date + "T12:00:00").getDate()}</p><div className="mt-3 flex h-20 items-end justify-center gap-1 border-b border-slate-800 pb-1"><div title={"Entradas: " + money(day.income)} className="w-2/5 rounded-t bg-emerald-400 transition-all" style={{ height: (day.income / weeklyMax * 100) + "%", minHeight: day.income > 0 ? "4px" : "0" }} /><div title={"Saídas: " + money(day.expenses)} className="w-2/5 rounded-t bg-rose-400 transition-all" style={{ height: (day.expenses / weeklyMax * 100) + "%", minHeight: day.expenses > 0 ? "4px" : "0" }} /></div><p className="mt-2 text-[10px] font-semibold text-slate-300 sm:text-xs">{day.count} {day.count === 1 ? "item" : "itens"}</p></div>)}</div>
+            </div>
+          </section>
           <section className="rounded-2xl border border-blue-400/15 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.25)] transition duration-300 hover:border-blue-400/40 hover:shadow-[0_0_28px_rgba(37,99,235,0.10)] sm:p-6">
             <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
               <div>
@@ -258,7 +301,7 @@ function FinanceDashboard() {
             <section className="rounded-2xl border border-blue-400/15 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.25)] transition duration-300 hover:border-blue-400/40 hover:shadow-[0_0_28px_rgba(37,99,235,0.10)] sm:p-6">
               <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center"><div><h3 className="font-bold">Movimentações</h3><p className="mt-1 text-sm text-slate-400">Acompanhe seu dinheiro por período.</p></div>
                 <div className="flex items-center gap-1 rounded-xl bg-[#182235] p-1">
-                  {([{key:"today",label:"Hoje"},{key:"month",label:"Este mês"},{key:"all",label:"Tudo"}] as const).map((item) => <button key={item.key} onClick={() => setPeriod(item.key)} className={`rounded-lg px-3 py-2 text-xs font-semibold transition ${period === item.key ? "bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-[0_0_18px_rgba(37,99,235,0.22)]" : "text-slate-400 hover:text-slate-100"}`}>{item.label}</button>)}
+                  {([{key:"today",label:"Hoje"},{key:"week",label:"Semana"},{key:"month",label:"Este mês"},{key:"all",label:"Tudo"}] as const).map((item) => <button key={item.key} onClick={() => setPeriod(item.key)} className={`rounded-lg px-3 py-2 text-xs font-semibold transition ${period === item.key ? "bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-[0_0_18px_rgba(37,99,235,0.22)]" : "text-slate-400 hover:text-slate-100"}`}>{item.label}</button>)}
                 </div>
               </div>
               <div className="mt-5 space-y-1">
