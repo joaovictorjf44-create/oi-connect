@@ -4,7 +4,8 @@ import {
   ArrowDownLeft, ArrowUpRight, Wallet, Plus, Scissors, Trash2,
   CalendarDays, TrendingUp, TrendingDown, CircleDollarSign, X, Menu,
   LayoutDashboard, ReceiptText, ChartNoAxesCombined, CreditCard, Banknote,
-  Smartphone, ChevronDown, CheckCircle2, BadgeDollarSign, CalendarClock, CircleAlert, Check, HandCoins
+  Smartphone, ChevronDown, CheckCircle2, BadgeDollarSign, CalendarClock, CircleAlert, Check, HandCoins,
+  Target, PiggyBank, Repeat, Download, Upload, FileSpreadsheet, Building2, Cloud, ShieldCheck, PlusCircle
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({ component: FinanceDashboard });
@@ -28,11 +29,39 @@ type Movement = {
   amount: number;
   payment: string;
   date: string;
+  account?: string;
   note?: string;
+};
+
+type SavingsGoal = {
+  id: string;
+  name: string;
+  target: number;
+  saved: number;
+};
+
+type RecurringBill = {
+  id: string;
+  name: string;
+  amount: number;
+  category: string;
+  dueDay: number;
+  lastPaidMonth?: string;
+};
+
+type Budget = {
+  id: string;
+  category: string;
+  limit: number;
 };
 
 const STORAGE_KEY = "gestao-financeira-pra-mim-movements";
 const DEBTS_STORAGE_KEY = "gestao-financeira-pra-mim-debts";
+const GOALS_STORAGE_KEY = "gestao-financeira-pra-mim-goals";
+const BILLS_STORAGE_KEY = "gestao-financeira-pra-mim-recurring-bills";
+const BUDGETS_STORAGE_KEY = "gestao-financeira-pra-mim-budgets";
+const ACCOUNTS_STORAGE_KEY = "gestao-financeira-pra-mim-accounts";
+const DEFAULT_ACCOUNTS = ["Conta principal", "Carteira", "Banco", "Poupança"];
 const money = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const todayISO = () => {
@@ -64,6 +93,22 @@ function FinanceDashboard() {
   const [note, setNote] = useState("");
   const [mobileMenu, setMobileMenu] = useState(false);
   const [debts, setDebts] = useState<Debt[]>([]);
+  const [goals, setGoals] = useState<SavingsGoal[]>([]);
+  const [goalName, setGoalName] = useState("");
+  const [goalTarget, setGoalTarget] = useState("");
+  const [goalSaved, setGoalSaved] = useState("0");
+  const [bills, setBills] = useState<RecurringBill[]>([]);
+  const [billName, setBillName] = useState("");
+  const [billAmount, setBillAmount] = useState("");
+  const [billCategory, setBillCategory] = useState("Internet");
+  const [billDueDay, setBillDueDay] = useState("10");
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [budgetCategory, setBudgetCategory] = useState("Alimentação");
+  const [budgetLimit, setBudgetLimit] = useState("");
+  const [accounts, setAccounts] = useState<string[]>(DEFAULT_ACCOUNTS);
+  const [newAccount, setNewAccount] = useState("");
+  const [selectedAccount, setSelectedAccount] = useState("Conta principal");
+  const [backupMessage, setBackupMessage] = useState("");
   const [debtName, setDebtName] = useState("");
   const [debtCreditor, setDebtCreditor] = useState("");
   const [debtAmount, setDebtAmount] = useState("");
@@ -81,9 +126,23 @@ function FinanceDashboard() {
     try {
       const savedDebts = localStorage.getItem(DEBTS_STORAGE_KEY);
       if (savedDebts) setDebts(JSON.parse(savedDebts) as Debt[]);
-    } catch {
-      setDebts([]);
-    }
+    } catch { setDebts([]); }
+    try {
+      const savedGoals = localStorage.getItem(GOALS_STORAGE_KEY);
+      if (savedGoals) setGoals(JSON.parse(savedGoals) as SavingsGoal[]);
+    } catch { setGoals([]); }
+    try {
+      const savedBills = localStorage.getItem(BILLS_STORAGE_KEY);
+      if (savedBills) setBills(JSON.parse(savedBills) as RecurringBill[]);
+    } catch { setBills([]); }
+    try {
+      const savedBudgets = localStorage.getItem(BUDGETS_STORAGE_KEY);
+      if (savedBudgets) setBudgets(JSON.parse(savedBudgets) as Budget[]);
+    } catch { setBudgets([]); }
+    try {
+      const savedAccounts = localStorage.getItem(ACCOUNTS_STORAGE_KEY);
+      if (savedAccounts) setAccounts(JSON.parse(savedAccounts) as string[]);
+    } catch { setAccounts(DEFAULT_ACCOUNTS); }
     setLoaded(true);
   }, []);
 
@@ -91,8 +150,12 @@ function FinanceDashboard() {
     if (loaded) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(movements));
       localStorage.setItem(DEBTS_STORAGE_KEY, JSON.stringify(debts));
+      localStorage.setItem(GOALS_STORAGE_KEY, JSON.stringify(goals));
+      localStorage.setItem(BILLS_STORAGE_KEY, JSON.stringify(bills));
+      localStorage.setItem(BUDGETS_STORAGE_KEY, JSON.stringify(budgets));
+      localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(accounts));
     }
-  }, [movements, debts, loaded]);
+  }, [movements, debts, goals, bills, budgets, accounts, loaded]);
 
   const filtered = useMemo(() => movements.filter((item) => {
     if (period === "today") return item.date === todayISO();
@@ -147,6 +210,87 @@ function FinanceDashboard() {
   }, [movements]);
   const trendMax = Math.max(1, ...monthlyTrend.flatMap((month) => [month.income, month.expenses]));
   const profitMax = Math.max(1, ...monthlyTrend.map((month) => Math.abs(month.profit)));
+  const currentMonth = todayISO().slice(0, 7);
+  const currentMonthExpenses = movements.filter((m) => m.type === "saida" && m.date.slice(0, 7) === currentMonth);
+  const accountBalances = accounts.map((account) => ({
+    name: account,
+    balance: movements.filter((m) => (m.account || "Conta principal") === account)
+      .reduce((sum, m) => sum + (m.type === "entrada" ? m.amount : -m.amount), 0),
+  }));
+  const reportMovements = movements.slice().sort((a, b) => b.date.localeCompare(a.date));
+
+  function downloadFile(filename: string, content: string, mimeType: string) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    setBackupMessage("Arquivo preparado para salvar.");
+  }
+
+  function exportBackup() {
+    const backup = { app: "Gestão Financeira pra Mim", version: 1, exportedAt: new Date().toISOString(), movements, debts, goals, bills, budgets, accounts };
+    downloadFile("backup-gestao-financeira.json", JSON.stringify(backup, null, 2), "application/json");
+  }
+
+  async function importBackup(file?: File) {
+    if (!file) return;
+    try {
+      const data = JSON.parse(await file.text()) as Partial<{ movements: Movement[]; debts: Debt[]; goals: SavingsGoal[]; bills: RecurringBill[]; budgets: Budget[]; accounts: string[] }>;
+      if (!Array.isArray(data.movements) || !Array.isArray(data.debts)) throw new Error("Arquivo inválido");
+      setMovements(data.movements);
+      setDebts(data.debts);
+      setGoals(Array.isArray(data.goals) ? data.goals : []);
+      setBills(Array.isArray(data.bills) ? data.bills : []);
+      setBudgets(Array.isArray(data.budgets) ? data.budgets : []);
+      setAccounts(Array.isArray(data.accounts) && data.accounts.length ? data.accounts : DEFAULT_ACCOUNTS);
+      setBackupMessage("Backup restaurado com sucesso.");
+    } catch {
+      setBackupMessage("Não foi possível restaurar. Escolha um backup JSON válido deste aplicativo.");
+    }
+  }
+
+  function exportCsv() {
+    const rows = [["Data", "Tipo", "Descrição", "Categoria", "Conta", "Pagamento", "Valor", "Observação"],
+      ...reportMovements.map((m) => [m.date, m.type, m.description, m.category, m.account || "Conta principal", m.payment, m.amount.toFixed(2).replace(".", ","), m.note || ""])];
+    const csv = "\uFEFF" + rows.map((row) => row.map((cell) => '"' + String(cell).replace(/"/g, '""') + '"').join(";")).join("\r\n");
+    downloadFile("relatorio-financeiro.csv", csv, "text/csv;charset=utf-8");
+  }
+
+  function saveGoal(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const target = Number(goalTarget.replace(",", "."));
+    const saved = Number(goalSaved.replace(",", "."));
+    if (!goalName.trim() || !Number.isFinite(target) || target <= 0 || !Number.isFinite(saved) || saved < 0) return;
+    setGoals((current) => [{ id: crypto.randomUUID(), name: goalName.trim(), target, saved }, ...current]);
+    setGoalName(""); setGoalTarget(""); setGoalSaved("0");
+  }
+
+  function saveBill(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const value = Number(billAmount.replace(",", "."));
+    const due = Number(billDueDay);
+    if (!billName.trim() || !Number.isFinite(value) || value <= 0 || due < 1 || due > 31) return;
+    setBills((current) => [{ id: crypto.randomUUID(), name: billName.trim(), amount: value, category: billCategory, dueDay: due }, ...current]);
+    setBillName(""); setBillAmount("");
+  }
+
+  function payBill(bill: RecurringBill) {
+    if (bill.lastPaidMonth === currentMonth) return;
+    const item: Movement = { id: crypto.randomUUID(), type: "saida", description: bill.name, category: bill.category, amount: bill.amount, payment: "Pix", date: todayISO(), account: selectedAccount, note: "Conta recorrente" };
+    setMovements((current) => [item, ...current]);
+    setBills((current) => current.map((entry) => entry.id === bill.id ? { ...entry, lastPaidMonth: currentMonth } : entry));
+  }
+
+  function saveBudget(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const limit = Number(budgetLimit.replace(",", "."));
+    if (!Number.isFinite(limit) || limit <= 0) return;
+    setBudgets((current) => [{ id: crypto.randomUUID(), category: budgetCategory, limit }, ...current.filter((item) => item.category !== budgetCategory)]);
+    setBudgetLimit("");
+  }
 
   function openModal(type: "entrada" | "saida", quickCut = false) {
     setModal(type);
@@ -193,6 +337,7 @@ function FinanceDashboard() {
       amount: numericAmount,
       payment,
       date,
+      account: selectedAccount,
       note: note.trim() || undefined,
     };
     setMovements((current) => [item, ...current]);
@@ -217,7 +362,10 @@ function FinanceDashboard() {
         <div className="flex items-center gap-3 rounded-xl border border-blue-400/30 bg-blue-500/10 shadow-[0_0_18px_rgba(37,99,235,0.08)] px-3 py-3 font-semibold text-blue-300"><LayoutDashboard size={19} /> Visão geral</div>
         <button onClick={() => { setPeriod("all"); setMobileMenu(false); }} className="mt-2 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><ReceiptText size={19} /> Movimentações</button>
         <button onClick={() => { setPeriod("month"); setMobileMenu(false); }} className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><ChartNoAxesCombined size={19} /> Resumo mensal</button>
+        <button onClick={() => { setMobileMenu(false); document.getElementById("planejamento")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><Target size={19} /> Metas e orçamento</button>
+        <button onClick={() => { setMobileMenu(false); document.getElementById("contas-recorrentes")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><Repeat size={19} /> Contas recorrentes</button>
         <button onClick={() => { setMobileMenu(false); document.getElementById("minhas-dividas")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><BadgeDollarSign size={19} /> Minhas dívidas <span className="ml-auto rounded-full bg-blue-500/15 px-2 py-0.5 text-xs text-cyan-300">{unpaidDebts.length}</span></button>
+        <button onClick={() => { setMobileMenu(false); document.getElementById("backup-relatorios")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><ShieldCheck size={19} /> Backup e relatórios</button>
         <div className="absolute bottom-5 left-5 right-5 rounded-2xl border border-slate-800 bg-[#050914] p-4 text-white">
           <div className="mb-2 flex items-center gap-2 text-cyan-200"><Scissors size={16} /><span className="text-xs font-semibold">Seu negócio, organizado</span></div>
           <p className="text-sm text-zinc-400">Registre cada entrada e despesa para acompanhar seu dinheiro.</p>
@@ -328,7 +476,7 @@ function FinanceDashboard() {
                 {filtered.length === 0 ? <div className="flex flex-col items-center py-12 text-center"><div className="mb-3 rounded-2xl bg-blue-950/50 p-4 text-blue-400"><ReceiptText size={25} /></div><p className="font-semibold">Nenhuma movimentação por aqui</p><p className="mt-1 max-w-xs text-sm text-slate-400">Registre seu primeiro corte ou uma despesa para começar a acompanhar seu financeiro.</p><button onClick={() => openModal("entrada", true)} className="mt-4 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-500"><Plus size={16} className="mr-1 inline" /> Registrar primeiro corte</button></div> :
                   filtered.slice(0, 12).map((m) => <div key={m.id} className="group flex items-center gap-3 border-b border-slate-800 py-3 last:border-0">
                     <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${m.type === "entrada" ? "bg-emerald-950/50 text-emerald-400" : "bg-rose-950/50 text-rose-400"}`}>{m.type === "entrada" ? <ArrowDownLeft size={19} /> : <ArrowUpRight size={19} />}</div>
-                    <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{m.description}</p><p className="mt-0.5 text-xs text-slate-400">{m.category} · {new Date(m.date + "T12:00:00").toLocaleDateString("pt-BR")} · {m.payment}</p></div>
+                    <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{m.description}</p><p className="mt-0.5 text-xs text-slate-400">{m.category} · {new Date(m.date + "T12:00:00").toLocaleDateString("pt-BR")} · {m.payment} · {m.account || "Conta principal"}</p></div>
                     <div className="text-right"><p className={`text-sm font-bold ${m.type === "entrada" ? "text-emerald-400" : "text-rose-400"}`}>{m.type === "entrada" ? "+" : "−"}{money(m.amount)}</p><button onClick={() => setMovements((current) => current.filter((x) => x.id !== m.id))} className="mt-1 text-xs text-slate-400 opacity-100 hover:text-rose-600 sm:opacity-0 sm:group-hover:opacity-100"><Trash2 size={13} className="inline" /> Excluir</button></div>
                   </div>)}
               </div>
@@ -351,6 +499,68 @@ function FinanceDashboard() {
               </section>
             </div>
           </div>
+
+          <section id="contas-e-saldos" className="scroll-mt-6 rounded-2xl border border-blue-400/20 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 sm:p-6">
+            <div className="flex items-center gap-2 text-cyan-300"><Building2 size={21} /><span className="text-xs font-bold uppercase tracking-[0.18em]">Contas e saldos</span></div>
+            <h3 className="mt-2 text-xl font-bold">Onde está seu dinheiro?</h3>
+            <p className="mt-1 text-sm text-slate-400">Cada movimentação pode ser associada a uma conta ou carteira.</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{accountBalances.map((account) => <div key={account.name} className="rounded-xl border border-blue-400/15 bg-[#080f1e] p-4"><p className="text-sm text-slate-400">{account.name}</p><p className={"mt-2 text-xl font-bold " + (account.balance >= 0 ? "text-cyan-300" : "text-rose-300")}>{money(account.balance)}</p></div>)}</div>
+            <form onSubmit={(e) => { e.preventDefault(); const name = newAccount.trim(); if (name && !accounts.some((a) => a.toLowerCase() === name.toLowerCase())) { setAccounts((current) => [...current, name]); setSelectedAccount(name); setNewAccount(""); } }} className="mt-4 flex flex-col gap-3 sm:flex-row">
+              <input value={newAccount} onChange={(e) => setNewAccount(e.target.value)} placeholder="Nome de uma nova conta (ex.: Banco Inter)" className="min-w-0 flex-1 rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 text-sm outline-none focus:border-cyan-400" />
+              <button className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-500"><Plus size={16} className="mr-1 inline" /> Adicionar conta</button>
+            </form>
+          </section>
+
+          <section id="planejamento" className="scroll-mt-6 grid gap-6 xl:grid-cols-2">
+            <div className="rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 sm:p-6">
+              <div className="flex items-center gap-2 text-cyan-300"><Target size={21} /><span className="text-xs font-bold uppercase tracking-[0.18em]">Objetivos financeiros</span></div>
+              <h3 className="mt-2 text-xl font-bold">Metas para juntar dinheiro</h3>
+              <form onSubmit={saveGoal} className="mt-4 grid gap-3 sm:grid-cols-2">
+                <label className="text-sm text-slate-300 sm:col-span-2">Nome da meta<input required value={goalName} onChange={(e) => setGoalName(e.target.value)} placeholder="Ex.: Reserva de emergência" className="mt-1 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400" /></label>
+                <label className="text-sm text-slate-300">Objetivo (R$)<input required type="number" min="0.01" step="0.01" value={goalTarget} onChange={(e) => setGoalTarget(e.target.value)} placeholder="1000,00" className="mt-1 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400" /></label>
+                <label className="text-sm text-slate-300">Já guardado (R$)<input type="number" min="0" step="0.01" value={goalSaved} onChange={(e) => setGoalSaved(e.target.value)} className="mt-1 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400" /></label>
+                <button className="rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-bold text-white sm:col-span-2"><Plus size={16} className="mr-1 inline" /> Criar meta</button>
+              </form>
+              <div className="mt-5 space-y-3">{goals.length === 0 ? <p className="rounded-xl border border-dashed border-blue-400/20 p-5 text-center text-sm text-slate-400">Suas metas aparecerão aqui.</p> : goals.map((goal) => <div key={goal.id} className="rounded-xl border border-blue-400/15 bg-[#080f1e] p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-semibold">{goal.name}</p><p className="mt-1 text-xs text-slate-400">{money(goal.saved)} de {money(goal.target)}</p></div><button aria-label="Excluir meta" onClick={() => setGoals((current) => current.filter((g) => g.id !== goal.id))} className="text-slate-500 hover:text-rose-300"><Trash2 size={16} /></button></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-[#182235]"><div className="h-full rounded-full bg-gradient-to-r from-blue-600 to-cyan-300" style={{ width: Math.min(100, goal.saved / goal.target * 100) + "%" }} /></div><div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs"><span className="text-cyan-300">{Math.min(100, Math.round(goal.saved / goal.target * 100))}% concluído</span><span className="text-slate-400">Faltam {money(Math.max(0, goal.target - goal.saved))}</span></div><form onSubmit={(e) => { e.preventDefault(); const raw = (e.currentTarget.elements.namedItem("contribution") as HTMLInputElement).value; const value = Number(raw.replace(",", ".")); if (Number.isFinite(value) && value > 0) setGoals((current) => current.map((g) => g.id === goal.id ? { ...g, saved: g.saved + value } : g)); e.currentTarget.reset(); }} className="mt-3 flex gap-2"><input name="contribution" type="number" min="0.01" step="0.01" required placeholder="Adicionar valor R$" className="min-w-0 flex-1 rounded-lg border border-blue-400/20 bg-[#050914] px-3 py-2 text-sm outline-none focus:border-cyan-400" /><button className="rounded-lg bg-emerald-600/20 px-3 py-2 text-xs font-semibold text-emerald-300">Guardar</button></form></div>)}</div>
+            </div>
+            <div className="rounded-2xl border border-blue-400/20 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 sm:p-6">
+              <div className="flex items-center gap-2 text-blue-300"><PiggyBank size={21} /><span className="text-xs font-bold uppercase tracking-[0.18em]">Planejamento do mês</span></div>
+              <h3 className="mt-2 text-xl font-bold">Limites de gastos por categoria</h3>
+              <form onSubmit={saveBudget} className="mt-4 flex flex-col gap-3">
+                <label className="text-sm text-slate-300">Categoria<select value={budgetCategory} onChange={(e) => setBudgetCategory(e.target.value)} className="mt-1 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400">{["Alimentação","Moradia","Transporte","Materiais","Lazer","Saúde","Internet","Assinaturas","Outras despesas"].map((c) => <option key={c}>{c}</option>)}</select></label>
+                <label className="text-sm text-slate-300">Limite mensal (R$)<input required type="number" min="0.01" step="0.01" value={budgetLimit} onChange={(e) => setBudgetLimit(e.target.value)} placeholder="300,00" className="mt-1 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400" /></label>
+                <button className="rounded-xl border border-blue-400/25 bg-blue-500/15 px-4 py-3 text-sm font-semibold text-blue-200"><Plus size={16} className="mr-1 inline" /> Salvar limite</button>
+              </form>
+              <div className="mt-5 space-y-3">{budgets.length === 0 ? <p className="rounded-xl border border-dashed border-blue-400/20 p-5 text-center text-sm text-slate-400">Cadastre um limite para acompanhar seus gastos.</p> : budgets.map((budget) => { const spent = currentMonthExpenses.filter((m) => m.category === budget.category).reduce((sum, m) => sum + m.amount, 0); const percent = spent / budget.limit * 100; return <div key={budget.id} className="rounded-xl border border-blue-400/15 bg-[#080f1e] p-4"><div className="flex items-center justify-between gap-3"><p className="font-semibold">{budget.category}</p><button aria-label="Excluir limite" onClick={() => setBudgets((current) => current.filter((b) => b.id !== budget.id))} className="text-slate-500 hover:text-rose-300"><Trash2 size={15} /></button></div><div className="mt-2 flex justify-between gap-2 text-xs"><span className={percent >= 100 ? "text-rose-300" : "text-slate-400"}>{money(spent)} gastos</span><span className="text-slate-300">Limite {money(budget.limit)}</span></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-[#182235]"><div className={"h-full rounded-full " + (percent >= 100 ? "bg-rose-500" : percent >= 80 ? "bg-amber-400" : "bg-cyan-400")} style={{ width: Math.min(100, percent) + "%" }} /></div>{percent >= 80 && <p className={"mt-2 text-xs " + (percent >= 100 ? "text-rose-300" : "text-amber-300")}>{percent >= 100 ? "Limite ultrapassado!" : "Atenção: você está perto do limite."}</p>}</div> })}</div>
+            </div>
+          </section>
+
+          <section id="contas-recorrentes" className="scroll-mt-6 rounded-2xl border border-blue-400/20 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 sm:p-6">
+            <div className="flex items-center gap-2 text-cyan-300"><Repeat size={21} /><span className="text-xs font-bold uppercase tracking-[0.18em]">Contas recorrentes</span></div>
+            <h3 className="mt-2 text-xl font-bold">Não esqueça seus vencimentos</h3>
+            <p className="mt-1 text-sm text-slate-400">Cadastre contas mensais e registre o pagamento para lançar a despesa automaticamente.</p>
+            <form onSubmit={saveBill} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <label className="text-sm text-slate-300">Nome da conta<input required value={billName} onChange={(e) => setBillName(e.target.value)} placeholder="Ex.: Internet" className="mt-1 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400" /></label>
+              <label className="text-sm text-slate-300">Valor mensal (R$)<input required type="number" min="0.01" step="0.01" value={billAmount} onChange={(e) => setBillAmount(e.target.value)} placeholder="99,90" className="mt-1 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400" /></label>
+              <label className="text-sm text-slate-300">Categoria<select value={billCategory} onChange={(e) => setBillCategory(e.target.value)} className="mt-1 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400">{["Aluguel","Água e energia","Internet","Materiais","Transporte","Assinaturas","Impostos","Outras despesas"].map((c) => <option key={c}>{c}</option>)}</select></label>
+              <label className="text-sm text-slate-300">Dia do vencimento<input required type="number" min="1" max="31" value={billDueDay} onChange={(e) => setBillDueDay(e.target.value)} className="mt-1 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400" /></label>
+              <button className="rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-bold text-white sm:col-span-2 lg:col-span-4"><Plus size={16} className="mr-1 inline" /> Cadastrar conta recorrente</button>
+            </form>
+            <div className="mt-5 space-y-3">{bills.length === 0 ? <p className="rounded-xl border border-dashed border-blue-400/20 p-5 text-center text-sm text-slate-400">Nenhuma conta recorrente cadastrada.</p> : bills.map((bill) => { const paidThisMonth = bill.lastPaidMonth === currentMonth; const overdue = !paidThisMonth && Number(todayISO().slice(8, 10)) > bill.dueDay; return <div key={bill.id} className="flex flex-col gap-3 rounded-xl border border-blue-400/15 bg-[#080f1e] p-4 sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><p className="font-semibold">{bill.name}</p><p className="mt-1 text-xs text-slate-400">{bill.category} · Vence todo dia {bill.dueDay}</p><p className={"mt-1 text-xs " + (paidThisMonth ? "text-emerald-300" : overdue ? "text-rose-300" : "text-amber-300")}>{paidThisMonth ? "Pago neste mês" : overdue ? "Vencimento passou — confira" : "Pendente neste mês"}</p></div><p className="text-lg font-bold">{money(bill.amount)}</p><div className="flex gap-2"><button disabled={paidThisMonth} onClick={() => payBill(bill)} className="rounded-lg bg-emerald-600/15 px-3 py-2 text-xs font-semibold text-emerald-300 disabled:opacity-40">{paidThisMonth ? "Já pago" : "Registrar pagamento"}</button><button aria-label="Excluir conta recorrente" onClick={() => setBills((current) => current.filter((b) => b.id !== bill.id))} className="rounded-lg border border-rose-500/20 px-3 py-2 text-xs text-rose-300"><Trash2 size={14} /></button></div></div> })}</div>
+          </section>
+
+          <section id="backup-relatorios" className="scroll-mt-6 rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 sm:p-6">
+            <div className="flex items-center gap-2 text-cyan-300"><ShieldCheck size={21} /><span className="text-xs font-bold uppercase tracking-[0.18em]">Proteção dos seus dados</span></div>
+            <h3 className="mt-2 text-xl font-bold">Backup e relatórios</h3>
+            <p className="mt-1 text-sm text-slate-400">Guarde uma cópia dos seus dados ou exporte suas movimentações para abrir em uma planilha.</p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button onClick={exportBackup} className="rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-semibold text-white"><Download size={16} className="mr-1 inline" /> Baixar backup completo</button>
+              <label className="cursor-pointer rounded-xl border border-blue-400/25 bg-blue-500/10 px-4 py-3 text-sm font-semibold text-blue-200 hover:bg-blue-500/20"><Upload size={16} className="mr-1 inline" /> Restaurar backup JSON<input type="file" accept="application/json,.json" className="hidden" onChange={(e) => { void importBackup(e.target.files?.[0]); e.currentTarget.value = ""; }} /></label>
+              <button onClick={exportCsv} className="rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-200"><FileSpreadsheet size={16} className="mr-1 inline" /> Exportar relatório CSV</button>
+            </div>
+            {backupMessage && <p className="mt-3 text-sm text-cyan-300" role="status">{backupMessage}</p>}
+            <div className="mt-5 rounded-xl border border-amber-400/20 bg-amber-400/5 p-4"><p className="flex items-center gap-2 font-semibold text-amber-200"><Cloud size={17} /> Login e sincronização na nuvem</p><p className="mt-1 text-sm text-slate-300">Ainda não conectado. Para sincronizar com segurança entre dispositivos, falta configurar um serviço de autenticação e banco de dados (por exemplo, Supabase) e suas chaves de ambiente. Até lá, os dados permanecem neste navegador; use o backup para protegê-los.</p></div>
+          </section>
 
           <section id="minhas-dividas" className="scroll-mt-6 rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 shadow-[0_0_32px_rgba(8,145,178,0.08)] sm:p-6">
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
@@ -450,7 +660,7 @@ function FinanceDashboard() {
             </div>
           </section>
 
-          <p className="text-center text-xs text-slate-400">Gestão Financeira pra Mim · Feito para facilitar sua rotina na barbearia.</p>
+          <p className="text-center text-xs text-slate-400">Gestão Financeira pra Mim · Seu dinheiro, organizado com segurança.</p>
         </div>
       </main>
 
@@ -464,6 +674,7 @@ function FinanceDashboard() {
               <label className="block text-sm font-semibold text-slate-200">Data<input required type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1.5 w-full rounded-xl border border-blue-400/20 bg-[#080f1e] px-3 py-3 font-normal outline-none focus:border-cyan-400 focus:ring-4 focus:ring-blue-500/20" /></label>
             </div>
             <label className="block text-sm font-semibold text-slate-200">Categoria<select value={category} onChange={(e) => setCategory(e.target.value)} className="mt-1.5 w-full rounded-xl border border-blue-400/20 bg-[#080f1e] px-3.5 py-3 font-normal outline-none focus:border-cyan-400 focus:ring-4 focus:ring-blue-500/20">{(modal === "entrada" ? ["Corte","Barba","Combo corte e barba","Sobrancelha","Gorjeta","Venda de produto","Outro serviço"] : ["Materiais","Aluguel","Água e energia","Internet","Manutenção","Transporte","Alimentação","Outras despesas"]).map((item) => <option key={item}>{item}</option>)}</select></label>
+            <label className="block text-sm font-semibold text-slate-200">Conta / onde entrou ou saiu<select value={selectedAccount} onChange={(e) => setSelectedAccount(e.target.value)} className="mt-1.5 w-full rounded-xl border border-blue-400/20 bg-[#080f1e] px-3.5 py-3 font-normal outline-none focus:border-cyan-400 focus:ring-4 focus:ring-blue-500/20">{accounts.map((item) => <option key={item}>{item}</option>)}</select></label>
             <label className="block text-sm font-semibold text-slate-200">Forma de pagamento<select value={payment} onChange={(e) => setPayment(e.target.value)} className="mt-1.5 w-full rounded-xl border border-blue-400/20 bg-[#080f1e] px-3.5 py-3 font-normal outline-none focus:border-cyan-400 focus:ring-4 focus:ring-blue-500/20">{["Pix","Dinheiro","Cartão de débito","Cartão de crédito","Transferência","Outro"].map((item) => <option key={item}>{item}</option>)}</select></label>
             <label className="block text-sm font-semibold text-slate-200">Observação (opcional)<textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Algum detalhe..." className="mt-1.5 w-full resize-none rounded-xl border border-blue-400/20 bg-[#080f1e] px-3.5 py-3 font-normal outline-none focus:border-cyan-400 focus:ring-4 focus:ring-blue-500/20" /></label>
           </div>
