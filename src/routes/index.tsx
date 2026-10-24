@@ -126,6 +126,7 @@ function FinanceDashboard() {
   const [cloudMessage, setCloudMessage] = useState("");
   const [cloudBusy, setCloudBusy] = useState(false);
   const [cloudSyncedUser, setCloudSyncedUser] = useState<string | null>(null);
+  const [authMode, setAuthMode] = useState<"login" | "signup" | "recovery">("login");
   const [debtName, setDebtName] = useState("");
   const [debtCreditor, setDebtCreditor] = useState("");
   const [debtAmount, setDebtAmount] = useState("");
@@ -323,6 +324,20 @@ function FinanceDashboard() {
     }
     const redirectTo = window.location.origin + window.location.pathname;
     window.location.href = config.url + "/auth/v1/authorize?provider=google&redirect_to=" + encodeURIComponent(redirectTo);
+  }
+
+  async function recoverCloudPassword() {
+    setCloudBusy(true);
+    setCloudMessage("");
+    try {
+      const config = cloudConfig();
+      if (!config.url || !config.key) throw new Error("O sistema de login ainda precisa ser configurado no Supabase.");
+      if (!cloudEmail.trim()) throw new Error("Digite seu e-mail para receber o link de recuperação.");
+      await cloudRequest("/auth/v1/recover", { method: "POST", body: JSON.stringify({ email: cloudEmail.trim(), redirect_to: window.location.origin + window.location.pathname }) });
+      setCloudMessage("Se esse e-mail estiver cadastrado, você receberá instruções para redefinir a senha.");
+    } catch (error) {
+      setCloudMessage(error instanceof Error ? error.message : "Não foi possível solicitar a recuperação.");
+    } finally { setCloudBusy(false); }
   }
 
   async function authenticateCloud(mode: "login" | "signup") {
@@ -542,6 +557,34 @@ function FinanceDashboard() {
     if (method === "Dinheiro") return <Banknote size={15} />;
     return <CreditCard size={15} />;
   };
+
+  if (!cloudSession) {
+    return (
+      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[radial-gradient(ellipse_at_top_right,_rgba(29,78,216,0.22),transparent_45%),linear-gradient(180deg,#050914_0%,#080f1e_100%)] px-4 py-10 text-slate-100">
+        <div className="pointer-events-none absolute -left-24 top-1/4 h-72 w-72 rounded-full bg-blue-600/10 blur-3xl" />
+        <div className="pointer-events-none absolute -right-24 bottom-0 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
+        <section className="relative w-full max-w-md rounded-3xl border border-cyan-400/20 bg-[#0b1220]/95 p-6 shadow-[0_0_60px_rgba(8,145,178,0.12)] sm:p-8">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-cyan-400/30 bg-gradient-to-br from-blue-600/30 to-cyan-400/10 text-cyan-300"><Wallet size={28} /></div>
+          <p className="mt-4 text-center text-xs font-bold uppercase tracking-[0.22em] text-cyan-300">MINHA GESTÃO PESSOAL</p>
+          <h1 className="mt-2 text-center text-2xl font-bold">{authMode === "signup" ? "Crie sua conta" : authMode === "recovery" ? "Recuperar senha" : "Bem-vindo de volta"}</h1>
+          <p className="mt-2 text-center text-sm text-slate-400">{authMode === "signup" ? "Cadastre-se para começar a organizar suas finanças." : authMode === "recovery" ? "Informe seu e-mail e enviaremos instruções para redefinir sua senha." : "Entre para acessar seu painel financeiro com segurança."}</p>
+          {authMode !== "recovery" && <button type="button" disabled={cloudBusy} onClick={loginGoogle} className="mt-6 w-full rounded-xl bg-white px-4 py-3 font-semibold text-slate-900 transition hover:bg-slate-100 disabled:opacity-50">Continuar com Google</button>}
+          {authMode !== "recovery" && <div className="my-4 flex items-center gap-3 text-xs text-slate-500"><span className="h-px flex-1 bg-slate-700" />ou {authMode === "signup" ? "cadastre-se com e-mail" : "entre com e-mail"}<span className="h-px flex-1 bg-slate-700" /></div>}
+          <form onSubmit={(e) => { e.preventDefault(); if (authMode === "recovery") void recoverCloudPassword(); else void authenticateCloud(authMode); }} className="grid gap-4">
+            <label className="block text-sm font-medium text-slate-300">E-mail<input required type="email" autoComplete="email" value={cloudEmail} onChange={(e) => setCloudEmail(e.target.value)} placeholder="voce@email.com" className="mt-1.5 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3.5 py-3 outline-none placeholder:text-slate-600 focus:border-cyan-400" /></label>
+            {authMode !== "recovery" && <label className="block text-sm font-medium text-slate-300">Senha<input required type="password" autoComplete={authMode === "signup" ? "new-password" : "current-password"} minLength={6} value={cloudPassword} onChange={(e) => setCloudPassword(e.target.value)} placeholder="Mínimo 6 caracteres" className="mt-1.5 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3.5 py-3 outline-none placeholder:text-slate-600 focus:border-cyan-400" /></label>}
+            {authMode === "login" && <button type="button" onClick={() => { setAuthMode("recovery"); setCloudMessage(""); }} className="justify-self-end text-sm text-cyan-300 hover:text-cyan-200">Esqueci minha senha</button>}
+            <button type="submit" disabled={cloudBusy} className="w-full rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 font-bold text-white transition hover:brightness-110 disabled:opacity-50">{cloudBusy ? "Aguarde..." : authMode === "signup" ? "Criar minha conta" : authMode === "recovery" ? "Enviar link de recuperação" : "Entrar no aplicativo"}</button>
+          </form>
+          {cloudMessage && <p role="status" className="mt-4 rounded-xl border border-cyan-400/20 bg-cyan-400/5 p-3 text-sm text-cyan-200">{cloudMessage}</p>}
+          <div className="mt-5 border-t border-slate-700/70 pt-4 text-center text-sm text-slate-400">
+            {authMode === "recovery" ? <>Lembrou sua senha? <button type="button" onClick={() => { setAuthMode("login"); setCloudMessage(""); }} className="font-semibold text-cyan-300">Voltar ao login</button></> : authMode === "signup" ? <>Já tem uma conta? <button type="button" onClick={() => { setAuthMode("login"); setCloudMessage(""); }} className="font-semibold text-cyan-300">Entrar</button></> : <>Ainda não tem conta? <button type="button" onClick={() => { setAuthMode("signup"); setCloudMessage(""); }} className="font-semibold text-cyan-300">Criar conta</button></>}
+          </div>
+          <p className="mt-5 text-center text-xs leading-relaxed text-slate-500">A autenticação e o banco precisam estar configurados para liberar o acesso e salvar seus dados na nuvem.</p>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_right,_rgba(29,78,216,0.16),_transparent_40%),linear-gradient(135deg,#050914_0%,#080f1e_50%,#070b14_100%)] text-slate-100">
