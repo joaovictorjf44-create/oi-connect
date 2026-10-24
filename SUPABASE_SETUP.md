@@ -52,7 +52,13 @@ using (auth.uid() = user_id);
 
 ## 3. Configurar autenticação
 
-Em **Authentication → Providers**, habilite Email. Para cadastro com confirmação, configure também o envio de e-mail; depois do cadastro, a pessoa precisa confirmar o endereço antes de entrar, conforme as configurações do projeto.
+Em **Authentication → Providers**:
+
+- Habilite **Email** se quiser manter o login por e-mail e senha.
+- Habilite **Google** para mostrar o botão “Continuar com Google”. Será necessário criar credenciais OAuth no Google Cloud Console (ID do cliente e segredo) e inseri-las nas configurações do provedor Google no Supabase.
+- No Google Cloud Console, configure como URI de redirecionamento autorizada a URL de callback do Supabase mostrada na configuração do provedor, normalmente `https://SEU-PROJETO.supabase.co/auth/v1/callback`.
+- Em **Authentication → URL Configuration**, adicione a URL publicada do aplicativo à lista de URLs permitidas. Se usar domínio próprio, adicione também `https://minhagestaopessoal.com` depois de conectar o domínio.
+- Para cadastro por e-mail com confirmação, configure também o envio de e-mail; a pessoa precisará confirmar o endereço conforme as configurações do projeto.
 
 ## 4. Como usar no aplicativo
 
@@ -62,4 +68,4 @@ Em **Authentication → Providers**, habilite Email. Para cadastro com confirma�
 4. Em outro dispositivo, entre com a mesma conta e use **Sincronizar / recuperar** para carregar a cópia.
 5. Depois de editar os dados, clique em **Enviar alterações atuais** para salvar a versão atual na nuvem.
 
-**Importante:** a sincronização é manual e trabalha com uma cópia completa do financeiro. Antes de recuperar dados em um dispositivo que já tenha registros diferentes, baixe um backup. Evite editar simultaneamente em dois dispositivos e depois enviar de ambos, pois a última cópia enviada substitui a anterior.
+**Importante:** a primeira sincronização decide se recupera a cópia já existente ou envia os dados locais quando ainda não há cópia. Antes de recuperar dados em um dispositivo que já tenha registros diferentes, baixe um backup. O aplicativo salva uma cópia completa; evite editar simultaneamente em vários dispositivos, pois versões concorrentes podem se sobrescrever.
