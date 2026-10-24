@@ -34,7 +34,7 @@ function FinanceDashboard() {
   const [period, setPeriod] = useState<"today" | "month" | "all">("today");
   const [modal, setModal] = useState<"entrada" | "saida" | null>(null);
   const [description, setDescription] = useState("Corte de cabelo");
-  const [amount, setAmount] = useState("27");
+  const [amount, setAmount] = useState("30");
   const [category, setCategory] = useState("Corte");
   const [payment, setPayment] = useState("Pix");
   const [date, setDate] = useState(todayISO());
@@ -72,7 +72,7 @@ function FinanceDashboard() {
   function openModal(type: "entrada" | "saida", quickCut = false) {
     setModal(type);
     setDescription(quickCut ? "Corte de cabelo" : "");
-    setAmount(quickCut ? "27" : "");
+    setAmount(quickCut ? "30" : "");
     setCategory(quickCut ? "Corte" : type === "entrada" ? "Outro serviço" : "Materiais");
     setPayment("Pix");
     setDate(todayISO());
@@ -173,8 +173,8 @@ function FinanceDashboard() {
               </section>
               <section className="rounded-2xl bg-gradient-to-br from-blue-800 to-slate-900 p-5 text-white shadow-sm sm:p-6">
                 <div className="flex items-center gap-2 text-blue-200"><CircleDollarSign size={20} /><span className="text-sm font-semibold">Meta de atendimento</span></div>
-                <p className="mt-3 text-2xl font-bold">R$ 27,00 <span className="text-sm font-medium text-blue-200">/ corte</span></p>
-                <p className="mt-1 text-sm text-blue-100">Preço padrão que você informou.</p>
+                <p className="mt-3 text-2xl font-bold">R$ 30,00 <span className="text-sm font-medium text-blue-200">/ corte</span></p>
+                <p className="mt-1 text-sm text-blue-100">Preço padrão do corte.</p>
                 <button onClick={() => openModal("entrada", true)} className="mt-4 w-full rounded-xl bg-white px-4 py-3 text-sm font-bold text-blue-900 hover:bg-blue-50"><Scissors size={16} className="mr-2 inline" /> Registrar um corte</button>
               </section>
             </div>
