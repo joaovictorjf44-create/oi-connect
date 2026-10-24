@@ -192,6 +192,25 @@ function FinanceDashboard() {
   const income = filtered.filter((m) => m.type === "entrada").reduce((sum, m) => sum + m.amount, 0);
   const expenses = filtered.filter((m) => m.type === "saida").reduce((sum, m) => sum + m.amount, 0);
   const balance = income - expenses;
+  const expenseBreakdown = useMemo(() => {
+    const totals = filtered.filter((m) => m.type === "saida").reduce<Record<string, number>>((acc, m) => {
+      const key = m.category || "Outros";
+      acc[key] = (acc[key] || 0) + m.amount;
+      return acc;
+    }, {});
+    return Object.entries(totals).map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [filtered]);
+  const incomeBreakdown = useMemo(() => {
+    const totals = filtered.filter((m) => m.type === "entrada").reduce<Record<string, number>>((acc, m) => {
+      const key = m.category || "Outros";
+      acc[key] = (acc[key] || 0) + m.amount;
+      return acc;
+    }, {});
+    return Object.entries(totals).map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [filtered]);
+
   const unpaidDebts = debts.filter((debt) => !debt.paid);
   const debtTotal = unpaidDebts.reduce((sum, debt) => sum + debt.amount, 0);
   const paidDebtTotal = debts.filter((debt) => debt.paid).reduce((sum, debt) => sum + debt.amount, 0);
@@ -587,6 +606,48 @@ function FinanceDashboard() {
               ))}
             </div>
             <p className="mt-4 text-xs text-slate-400">O lucro mostrado é calculado como entradas menos despesas registradas. Meses sem lançamentos aparecem zerados.</p>
+            <div className="mt-7 grid gap-5 lg:grid-cols-2">
+              {([
+                { title: "Despesas por categoria", subtitle: "Veja para onde seu dinheiro está indo.", items: expenseBreakdown, empty: "Nenhuma despesa neste período.", total: expenses },
+                { title: "Entradas por categoria", subtitle: "Veja de onde vem seu dinheiro.", items: incomeBreakdown, empty: "Nenhuma entrada neste período.", total: income },
+              ]).map((chart) => {
+                const palette = ["#22d3ee", "#3b82f6", "#8b5cf6", "#f59e0b", "#34d399", "#fb7185", "#a3e635", "#c084fc", "#64748b"];
+                let cursor = 0;
+                const gradient = chart.items.map((item, index) => {
+                  const start = cursor;
+                  cursor += chart.total > 0 ? item.value / chart.total * 100 : 0;
+                  return `${palette[index % palette.length]} ${start}% ${cursor}%`;
+                }).join(", ");
+                return (
+                  <div key={chart.title} className="rounded-2xl border border-cyan-400/15 bg-[#080f1e]/80 p-4 sm:p-5">
+                    <h4 className="font-bold text-white">{chart.title}</h4>
+                    <p className="mt-1 text-xs text-slate-400">{chart.subtitle}</p>
+                    {chart.items.length === 0 ? (
+                      <div className="flex min-h-40 items-center justify-center text-center text-sm text-slate-500">{chart.empty}</div>
+                    ) : (
+                      <div className="mt-5 flex flex-col items-center gap-5 sm:flex-row sm:items-center">
+                        <div className="relative h-36 w-36 shrink-0 rounded-full shadow-[0_0_28px_rgba(34,211,238,0.10)]" style={{ background: `conic-gradient(${gradient})` }} role="img" aria-label={chart.title}>
+                          <div className="absolute inset-[27%] flex flex-col items-center justify-center rounded-full bg-[#080f1e]">
+                            <span className="text-[10px] text-slate-400">TOTAL</span>
+                            <span className="max-w-full px-1 text-center text-xs font-bold text-white">{money(chart.total)}</span>
+                          </div>
+                        </div>
+                        <div className="w-full min-w-0 space-y-2">
+                          {chart.items.map((item, index) => (
+                            <div key={item.label} className="flex items-center gap-2 text-xs">
+                              <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: palette[index % palette.length] }} />
+                              <span className="min-w-0 flex-1 truncate text-slate-300" title={item.label}>{item.label}</span>
+                              <span className="shrink-0 font-semibold text-white">{money(item.value)}</span>
+                              <span className="w-10 shrink-0 text-right text-slate-500">{chart.total > 0 ? (item.value / chart.total * 100).toFixed(0) : 0}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </section>
 
           <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
