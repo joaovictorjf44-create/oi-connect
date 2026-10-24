@@ -69,6 +69,26 @@ function FinanceDashboard() {
   const monthIncome = movements.filter((m) => m.type === "entrada" && m.date.slice(0, 7) === todayISO().slice(0, 7)).reduce((sum, m) => sum + m.amount, 0);
   const monthExpenses = movements.filter((m) => m.type === "saida" && m.date.slice(0, 7) === todayISO().slice(0, 7)).reduce((sum, m) => sum + m.amount, 0);
 
+  const monthlyTrend = useMemo(() => {
+    const now = new Date();
+    return Array.from({ length: 6 }, (_, index) => {
+      const monthDate = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1);
+      const key = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, "0")}`;
+      const monthMovements = movements.filter((m) => m.date.slice(0, 7) === key);
+      const monthIncome = monthMovements.filter((m) => m.type === "entrada").reduce((sum, m) => sum + m.amount, 0);
+      const monthExpenses = monthMovements.filter((m) => m.type === "saida").reduce((sum, m) => sum + m.amount, 0);
+      return {
+        key,
+        label: monthDate.toLocaleDateString("pt-BR", { month: "short" }).replace(".", ""),
+        income: monthIncome,
+        expenses: monthExpenses,
+        profit: monthIncome - monthExpenses,
+      };
+    });
+  }, [movements]);
+  const trendMax = Math.max(1, ...monthlyTrend.flatMap((month) => [month.income, month.expenses]));
+  const profitMax = Math.max(1, ...monthlyTrend.map((month) => Math.abs(month.profit)));
+
   function openModal(type: "entrada" | "saida", quickCut = false) {
     setModal(type);
     setDescription(quickCut ? "Corte de cabelo" : "");
@@ -144,6 +164,40 @@ function FinanceDashboard() {
             <StatCard label="Total de saídas" value={money(expenses)} icon={<ArrowUpRight size={20} />} tint="red" caption={period === "today" ? "Despesas de hoje" : "Despesas registradas"} />
             <StatCard label="Cortes registrados" value={String(cuts)} icon={<Scissors size={20} />} tint="purple" caption={cuts ? `Média por corte: ${money(avg)}` : "Comece registrando um corte"} />
           </div>
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+              <div>
+                <h3 className="font-bold">Gráficos financeiros</h3>
+                <p className="mt-1 text-sm text-slate-500">Compare entradas, despesas e lucro dos últimos 6 meses.</p>
+              </div>
+              <div className="flex flex-wrap gap-3 text-xs font-medium text-slate-600">
+                <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-emerald-500" /> Entradas</span>
+                <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-rose-500" /> Despesas</span>
+                <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-blue-600" /> Lucro</span>
+              </div>
+            </div>
+            <div className="mt-6 grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-6">
+              {monthlyTrend.map((month) => (
+                <div key={month.key} className="min-w-0">
+                  <div className="flex h-36 items-end justify-center gap-2 border-b border-slate-200 px-1">
+                    <div className="flex h-full w-1/3 flex-col justify-end" title={`Entradas: ${money(month.income)}`}>
+                      <div className="w-full rounded-t-md bg-emerald-500 transition-all" style={{ height: `${(month.income / trendMax) * 100}%`, minHeight: month.income > 0 ? "4px" : "0" }} />
+                    </div>
+                    <div className="flex h-full w-1/3 flex-col justify-end" title={`Despesas: ${money(month.expenses)}`}>
+                      <div className="w-full rounded-t-md bg-rose-500 transition-all" style={{ height: `${(month.expenses / trendMax) * 100}%`, minHeight: month.expenses > 0 ? "4px" : "0" }} />
+                    </div>
+                  </div>
+                  <p className="mt-2 text-center text-xs font-semibold capitalize text-slate-600">{month.label}</p>
+                  <p className={`mt-1 truncate text-center text-xs font-bold ${month.profit >= 0 ? "text-blue-700" : "text-rose-700"}`} title={`Lucro: ${money(month.profit)}`}>{money(month.profit)}</p>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100" title={`Resultado: ${money(month.profit)}`}>
+                    <div className={`h-full rounded-full ${month.profit >= 0 ? "bg-blue-600" : "bg-rose-500"}`} style={{ width: `${(Math.abs(month.profit) / profitMax) * 100}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-4 text-xs text-slate-400">O lucro mostrado é calculado como entradas menos despesas registradas. Meses sem lançamentos aparecem zerados.</p>
+          </section>
 
           <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
             <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
