@@ -313,7 +313,7 @@ function FinanceDashboard() {
     if (!cloudSession) return;
     setCloudBusy(true); setCloudMessage("");
     try {
-      const data = { movements, debts, goals, bills, budgets, accounts };
+      const data = { movements, debts, goals, bills, budgets, accounts, openingBalances };
       await cloudRequest("/rest/v1/finance_snapshots?on_conflict=user_id", {
         method: "POST",
         headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
