@@ -61,6 +61,7 @@ const GOALS_STORAGE_KEY = "gestao-financeira-pra-mim-goals";
 const BILLS_STORAGE_KEY = "gestao-financeira-pra-mim-recurring-bills";
 const BUDGETS_STORAGE_KEY = "gestao-financeira-pra-mim-budgets";
 const ACCOUNTS_STORAGE_KEY = "gestao-financeira-pra-mim-accounts";
+const OPENING_BALANCES_STORAGE_KEY = "gestao-financeira-pra-mim-opening-balances";
 const DEFAULT_ACCOUNTS = ["Conta principal", "Carteira", "Banco", "Poupança"];
 const CLOUD_SESSION_KEY = "gestao-financeira-pra-mim-cloud-session";
 type CloudSession = { access_token: string; refresh_token?: string; user: { id: string; email?: string } };
@@ -108,6 +109,9 @@ function FinanceDashboard() {
   const [budgetCategory, setBudgetCategory] = useState("Alimentação");
   const [budgetLimit, setBudgetLimit] = useState("");
   const [accounts, setAccounts] = useState<string[]>(DEFAULT_ACCOUNTS);
+  const [openingBalances, setOpeningBalances] = useState<Record<string, number>>({});
+  const [openingAccount, setOpeningAccount] = useState("Conta principal");
+  const [openingAmount, setOpeningAmount] = useState("0");
   const [newAccount, setNewAccount] = useState("");
   const [selectedAccount, setSelectedAccount] = useState("Conta principal");
   const [backupMessage, setBackupMessage] = useState("");
@@ -151,6 +155,10 @@ function FinanceDashboard() {
       if (savedAccounts) setAccounts(JSON.parse(savedAccounts) as string[]);
     } catch { setAccounts(DEFAULT_ACCOUNTS); }
     try {
+      const savedOpeningBalances = localStorage.getItem(OPENING_BALANCES_STORAGE_KEY);
+      if (savedOpeningBalances) setOpeningBalances(JSON.parse(savedOpeningBalances) as Record<string, number>);
+    } catch { setOpeningBalances({}); }
+    try {
       const session = localStorage.getItem(CLOUD_SESSION_KEY);
       if (session) setCloudSession(JSON.parse(session) as CloudSession);
     } catch { localStorage.removeItem(CLOUD_SESSION_KEY); }
@@ -165,8 +173,9 @@ function FinanceDashboard() {
       localStorage.setItem(BILLS_STORAGE_KEY, JSON.stringify(bills));
       localStorage.setItem(BUDGETS_STORAGE_KEY, JSON.stringify(budgets));
       localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(accounts));
+      localStorage.setItem(OPENING_BALANCES_STORAGE_KEY, JSON.stringify(openingBalances));
     }
-  }, [movements, debts, goals, bills, budgets, accounts, loaded]);
+  }, [movements, debts, goals, bills, budgets, accounts, openingBalances, loaded]);
 
   const filtered = useMemo(() => movements.filter((item) => {
     if (period === "today") return item.date === todayISO();
@@ -225,7 +234,7 @@ function FinanceDashboard() {
   const currentMonthExpenses = movements.filter((m) => m.type === "saida" && m.date.slice(0, 7) === currentMonth);
   const accountBalances = accounts.map((account) => ({
     name: account,
-    balance: movements.filter((m) => (m.account || "Conta principal") === account)
+    balance: (openingBalances[account] || 0) + movements.filter((m) => (m.account || "Conta principal") === account)
       .reduce((sum, m) => sum + (m.type === "entrada" ? m.amount : -m.amount), 0),
   }));
   const reportMovements = movements.slice().sort((a, b) => b.date.localeCompare(a.date));
@@ -275,7 +284,7 @@ function FinanceDashboard() {
     if (!cloudSession) { setCloudMessage("Entre na sua conta antes de sincronizar."); return; }
     setCloudBusy(true); setCloudMessage("");
     try {
-      const rows = await cloudRequest("/rest/v1/finance_snapshots?select=data&user_id=eq." + encodeURIComponent(cloudSession.user.id) + "&limit=1", { method: "GET" }, cloudSession.access_token) as Array<{ data: { movements?: Movement[]; debts?: Debt[]; goals?: SavingsGoal[]; bills?: RecurringBill[]; budgets?: Budget[]; accounts?: string[] } }>;
+      const rows = await cloudRequest("/rest/v1/finance_snapshots?select=data&user_id=eq." + encodeURIComponent(cloudSession.user.id) + "&limit=1", { method: "GET" }, cloudSession.access_token) as Array<{ data: { movements?: Movement[]; debts?: Debt[]; goals?: SavingsGoal[]; bills?: RecurringBill[]; budgets?: Budget[]; accounts?: string[]; openingBalances?: Record<string, number> } }>;
       if (rows.length && rows[0].data) {
         const data = rows[0].data;
         setMovements(Array.isArray(data.movements) ? data.movements : []);
@@ -284,9 +293,10 @@ function FinanceDashboard() {
         setBills(Array.isArray(data.bills) ? data.bills : []);
         setBudgets(Array.isArray(data.budgets) ? data.budgets : []);
         setAccounts(Array.isArray(data.accounts) && data.accounts.length ? data.accounts : DEFAULT_ACCOUNTS);
+        setOpeningBalances(data.openingBalances && typeof data.openingBalances === "object" ? data.openingBalances : {});
         setCloudMessage("Dados recuperados da nuvem. Para enviar alterações futuras, sincronize novamente.");
       } else {
-        const data = { movements, debts, goals, bills, budgets, accounts };
+        const data = { movements, debts, goals, bills, budgets, accounts, openingBalances };
         await cloudRequest("/rest/v1/finance_snapshots?on_conflict=user_id", {
           method: "POST",
           headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
@@ -333,14 +343,14 @@ function FinanceDashboard() {
   }
 
   function exportBackup() {
-    const backup = { app: "Gestão Financeira pra Mim", version: 1, exportedAt: new Date().toISOString(), movements, debts, goals, bills, budgets, accounts };
+    const backup = { app: "Gestão Financeira pra Mim", version: 1, exportedAt: new Date().toISOString(), movements, debts, goals, bills, budgets, accounts, openingBalances };
     downloadFile("backup-gestao-financeira.json", JSON.stringify(backup, null, 2), "application/json");
   }
 
   async function importBackup(file?: File) {
     if (!file) return;
     try {
-      const data = JSON.parse(await file.text()) as Partial<{ movements: Movement[]; debts: Debt[]; goals: SavingsGoal[]; bills: RecurringBill[]; budgets: Budget[]; accounts: string[] }>;
+      const data = JSON.parse(await file.text()) as Partial<{ movements: Movement[]; debts: Debt[]; goals: SavingsGoal[]; bills: RecurringBill[]; budgets: Budget[]; accounts: string[]; openingBalances: Record<string, number> }>;
       if (!Array.isArray(data.movements) || !Array.isArray(data.debts)) throw new Error("Arquivo inválido");
       setMovements(data.movements);
       setDebts(data.debts);
@@ -348,6 +358,7 @@ function FinanceDashboard() {
       setBills(Array.isArray(data.bills) ? data.bills : []);
       setBudgets(Array.isArray(data.budgets) ? data.budgets : []);
       setAccounts(Array.isArray(data.accounts) && data.accounts.length ? data.accounts : DEFAULT_ACCOUNTS);
+      setOpeningBalances(data.openingBalances && typeof data.openingBalances === "object" ? data.openingBalances : {});
       setBackupMessage("Backup restaurado com sucesso.");
     } catch {
       setBackupMessage("Não foi possível restaurar. Escolha um backup JSON válido deste aplicativo.");
@@ -607,9 +618,14 @@ function FinanceDashboard() {
             <h3 className="mt-2 text-xl font-bold">Onde está seu dinheiro?</h3>
             <p className="mt-1 text-sm text-slate-400">Cada movimentação pode ser associada a uma conta ou carteira.</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{accountBalances.map((account) => <div key={account.name} className="rounded-xl border border-blue-400/15 bg-[#080f1e] p-4"><p className="text-sm text-slate-400">{account.name}</p><p className={"mt-2 text-xl font-bold " + (account.balance >= 0 ? "text-cyan-300" : "text-rose-300")}>{money(account.balance)}</p></div>)}</div>
-            <form onSubmit={(e) => { e.preventDefault(); const name = newAccount.trim(); if (name && !accounts.some((a) => a.toLowerCase() === name.toLowerCase())) { setAccounts((current) => [...current, name]); setSelectedAccount(name); setNewAccount(""); } }} className="mt-4 flex flex-col gap-3 sm:flex-row">
+            <form onSubmit={(e) => { e.preventDefault(); const name = newAccount.trim(); if (name && !accounts.some((a) => a.toLowerCase() === name.toLowerCase())) { setAccounts((current) => [...current, name]); setSelectedAccount(name); setOpeningAccount(name); setNewAccount(""); } }} className="mt-4 flex flex-col gap-3 sm:flex-row">
               <input value={newAccount} onChange={(e) => setNewAccount(e.target.value)} placeholder="Nome de uma nova conta (ex.: Banco Inter)" className="min-w-0 flex-1 rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 text-sm outline-none focus:border-cyan-400" />
               <button className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-500"><Plus size={16} className="mr-1 inline" /> Adicionar conta</button>
+            </form>
+            <form onSubmit={(e) => { e.preventDefault(); const value = Number(openingAmount.replace(",", ".")); if (Number.isFinite(value)) { setOpeningBalances((current) => ({ ...current, [openingAccount]: value })); setOpeningAmount(String(value)); } }} className="mt-3 grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
+              <label className="text-sm text-slate-300">Conta para definir saldo inicial<select value={openingAccount} onChange={(e) => { setOpeningAccount(e.target.value); setOpeningAmount(String(openingBalances[e.target.value] || 0)); }} className="mt-1 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400">{accounts.map((account) => <option key={account}>{account}</option>)}</select></label>
+              <label className="text-sm text-slate-300">Saldo que já existe (R$)<input type="number" step="0.01" value={openingAmount} onChange={(e) => setOpeningAmount(e.target.value)} className="mt-1 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400" /></label>
+              <button className="self-end rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-200">Salvar saldo inicial</button>
             </form>
           </section>
 
@@ -629,7 +645,7 @@ function FinanceDashboard() {
               <div className="flex items-center gap-2 text-blue-300"><PiggyBank size={21} /><span className="text-xs font-bold uppercase tracking-[0.18em]">Planejamento do mês</span></div>
               <h3 className="mt-2 text-xl font-bold">Limites de gastos por categoria</h3>
               <form onSubmit={saveBudget} className="mt-4 flex flex-col gap-3">
-                <label className="text-sm text-slate-300">Categoria<select value={budgetCategory} onChange={(e) => setBudgetCategory(e.target.value)} className="mt-1 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400">{["Alimentação","Moradia","Transporte","Materiais","Lazer","Saúde","Internet","Assinaturas","Outras despesas"].map((c) => <option key={c}>{c}</option>)}</select></label>
+                <label className="text-sm text-slate-300">Categoria<select value={budgetCategory} onChange={(e) => setBudgetCategory(e.target.value)} className="mt-1 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400">{["Materiais","Aluguel","Água e energia","Internet","Manutenção","Transporte","Alimentação","Outras despesas"].map((c) => <option key={c}>{c}</option>)}</select></label>
                 <label className="text-sm text-slate-300">Limite mensal (R$)<input required type="number" min="0.01" step="0.01" value={budgetLimit} onChange={(e) => setBudgetLimit(e.target.value)} placeholder="300,00" className="mt-1 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400" /></label>
                 <button className="rounded-xl border border-blue-400/25 bg-blue-500/15 px-4 py-3 text-sm font-semibold text-blue-200"><Plus size={16} className="mr-1 inline" /> Salvar limite</button>
               </form>
