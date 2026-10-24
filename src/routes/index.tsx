@@ -4,10 +4,21 @@ import {
   ArrowDownLeft, ArrowUpRight, Wallet, Plus, Scissors, Trash2,
   CalendarDays, TrendingUp, TrendingDown, CircleDollarSign, X, Menu,
   LayoutDashboard, ReceiptText, ChartNoAxesCombined, CreditCard, Banknote,
-  Smartphone, ChevronDown, CheckCircle2
+  Smartphone, ChevronDown, CheckCircle2, BadgeDollarSign, CalendarClock, CircleAlert, Check, HandCoins
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({ component: FinanceDashboard });
+
+type Debt = {
+  id: string;
+  name: string;
+  creditor: string;
+  amount: number;
+  dueDate: string;
+  category: string;
+  note?: string;
+  paid: boolean;
+};
 
 type Movement = {
   id: string;
@@ -21,6 +32,7 @@ type Movement = {
 };
 
 const STORAGE_KEY = "gestao-financeira-pra-mim-movements";
+const DEBTS_STORAGE_KEY = "gestao-financeira-pra-mim-debts";
 const money = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const todayISO = () => {
@@ -40,6 +52,13 @@ function FinanceDashboard() {
   const [date, setDate] = useState(todayISO());
   const [note, setNote] = useState("");
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [debts, setDebts] = useState<Debt[]>([]);
+  const [debtName, setDebtName] = useState("");
+  const [debtCreditor, setDebtCreditor] = useState("");
+  const [debtAmount, setDebtAmount] = useState("");
+  const [debtDueDate, setDebtDueDate] = useState("");
+  const [debtCategory, setDebtCategory] = useState("Cartão de crédito");
+  const [debtNote, setDebtNote] = useState("");
 
   useEffect(() => {
     try {
@@ -48,12 +67,21 @@ function FinanceDashboard() {
     } catch {
       setMovements([]);
     }
+    try {
+      const savedDebts = localStorage.getItem(DEBTS_STORAGE_KEY);
+      if (savedDebts) setDebts(JSON.parse(savedDebts) as Debt[]);
+    } catch {
+      setDebts([]);
+    }
     setLoaded(true);
   }, []);
 
   useEffect(() => {
-    if (loaded) localStorage.setItem(STORAGE_KEY, JSON.stringify(movements));
-  }, [movements, loaded]);
+    if (loaded) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(movements));
+      localStorage.setItem(DEBTS_STORAGE_KEY, JSON.stringify(debts));
+    }
+  }, [movements, debts, loaded]);
 
   const filtered = useMemo(() => movements.filter((item) => {
     if (period === "today") return item.date === todayISO();
@@ -64,6 +92,9 @@ function FinanceDashboard() {
   const income = filtered.filter((m) => m.type === "entrada").reduce((sum, m) => sum + m.amount, 0);
   const expenses = filtered.filter((m) => m.type === "saida").reduce((sum, m) => sum + m.amount, 0);
   const balance = income - expenses;
+  const unpaidDebts = debts.filter((debt) => !debt.paid);
+  const debtTotal = unpaidDebts.reduce((sum, debt) => sum + debt.amount, 0);
+  const paidDebtTotal = debts.filter((debt) => debt.paid).reduce((sum, debt) => sum + debt.amount, 0);
   const cuts = filtered.filter((m) => m.type === "entrada" && m.category === "Corte").length;
   const avg = cuts ? filtered.filter((m) => m.type === "entrada" && m.category === "Corte").reduce((sum, m) => sum + m.amount, 0) / cuts : 0;
   const monthIncome = movements.filter((m) => m.type === "entrada" && m.date.slice(0, 7) === todayISO().slice(0, 7)).reduce((sum, m) => sum + m.amount, 0);
@@ -97,6 +128,29 @@ function FinanceDashboard() {
     setPayment("Pix");
     setDate(todayISO());
     setNote("");
+  }
+
+  function saveDebt(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const numericAmount = Number(debtAmount.replace(",", "."));
+    if (!debtName.trim() || !Number.isFinite(numericAmount) || numericAmount <= 0) return;
+    const debt: Debt = {
+      id: crypto.randomUUID(),
+      name: debtName.trim(),
+      creditor: debtCreditor.trim() || "Não informado",
+      amount: numericAmount,
+      dueDate: debtDueDate,
+      category: debtCategory,
+      note: debtNote.trim() || undefined,
+      paid: false,
+    };
+    setDebts((current) => [debt, ...current]);
+    setDebtName("");
+    setDebtCreditor("");
+    setDebtAmount("");
+    setDebtDueDate("");
+    setDebtCategory("Cartão de crédito");
+    setDebtNote("");
   }
 
   function saveMovement(event: React.FormEvent<HTMLFormElement>) {
@@ -135,6 +189,7 @@ function FinanceDashboard() {
         <div className="flex items-center gap-3 rounded-xl border border-blue-400/30 bg-blue-500/10 shadow-[0_0_18px_rgba(37,99,235,0.08)] px-3 py-3 font-semibold text-blue-300"><LayoutDashboard size={19} /> Visão geral</div>
         <button onClick={() => { setPeriod("all"); setMobileMenu(false); }} className="mt-2 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><ReceiptText size={19} /> Movimentações</button>
         <button onClick={() => { setPeriod("month"); setMobileMenu(false); }} className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><ChartNoAxesCombined size={19} /> Resumo mensal</button>
+        <button onClick={() => { setMobileMenu(false); document.getElementById("minhas-dividas")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><BadgeDollarSign size={19} /> Minhas dívidas <span className="ml-auto rounded-full bg-blue-500/15 px-2 py-0.5 text-xs text-cyan-300">{unpaidDebts.length}</span></button>
         <div className="absolute bottom-5 left-5 right-5 rounded-2xl border border-slate-800 bg-[#050914] p-4 text-white">
           <div className="mb-2 flex items-center gap-2 text-cyan-200"><Scissors size={16} /><span className="text-xs font-semibold">Seu negócio, organizado</span></div>
           <p className="text-sm text-zinc-400">Registre cada entrada e despesa para acompanhar seu dinheiro.</p>
@@ -233,6 +288,105 @@ function FinanceDashboard() {
               </section>
             </div>
           </div>
+
+          <section id="minhas-dividas" className="scroll-mt-6 rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 shadow-[0_0_32px_rgba(8,145,178,0.08)] sm:p-6">
+            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+              <div>
+                <div className="flex items-center gap-2 text-cyan-300"><BadgeDollarSign size={22} /><span className="text-xs font-bold uppercase tracking-[0.18em]">Organização pessoal</span></div>
+                <h3 className="mt-2 text-2xl font-bold">Minhas dívidas</h3>
+                <p className="mt-1 text-sm text-slate-400">Cadastre suas contas, acompanhe os vencimentos e marque o que já pagou.</p>
+              </div>
+              <div className="rounded-xl border border-cyan-400/20 bg-[#081525] px-4 py-3">
+                <p className="text-xs text-slate-400">Total em aberto</p>
+                <p className="mt-1 text-2xl font-bold text-cyan-300">{money(debtTotal)}</p>
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-blue-400/15 bg-[#080f1e] p-4">
+                <p className="text-xs text-slate-400">Dívidas pendentes</p>
+                <p className="mt-1 text-xl font-bold text-white">{unpaidDebts.length}</p>
+              </div>
+              <div className="rounded-xl border border-blue-400/15 bg-[#080f1e] p-4">
+                <p className="text-xs text-slate-400">Valor em aberto</p>
+                <p className="mt-1 text-xl font-bold text-rose-300">{money(debtTotal)}</p>
+              </div>
+              <div className="rounded-xl border border-blue-400/15 bg-[#080f1e] p-4">
+                <p className="text-xs text-slate-400">Total já quitado</p>
+                <p className="mt-1 text-xl font-bold text-emerald-300">{money(paidDebtTotal)}</p>
+              </div>
+            </div>
+
+            <form onSubmit={saveDebt} className="mt-5 rounded-xl border border-blue-400/15 bg-[#080f1e]/80 p-4 sm:p-5">
+              <h4 className="mb-4 flex items-center gap-2 font-semibold text-white"><Plus size={18} className="text-cyan-300" /> Adicionar uma dívida</h4>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <label className="block text-sm font-medium text-slate-300">Nome da dívida *
+                  <input required value={debtName} onChange={(e) => setDebtName(e.target.value)} placeholder="Ex.: Fatura do cartão" className="mt-1.5 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 text-slate-100 outline-none placeholder:text-slate-600 focus:border-cyan-400 focus:ring-4 focus:ring-blue-500/20" />
+                </label>
+                <label className="block text-sm font-medium text-slate-300">Credor / para quem devo
+                  <input value={debtCreditor} onChange={(e) => setDebtCreditor(e.target.value)} placeholder="Ex.: Banco, loja, pessoa" className="mt-1.5 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 text-slate-100 outline-none placeholder:text-slate-600 focus:border-cyan-400 focus:ring-4 focus:ring-blue-500/20" />
+                </label>
+                <label className="block text-sm font-medium text-slate-300">Valor total (R$) *
+                  <input required min="0.01" step="0.01" type="number" value={debtAmount} onChange={(e) => setDebtAmount(e.target.value)} placeholder="0,00" className="mt-1.5 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 text-slate-100 outline-none placeholder:text-slate-600 focus:border-cyan-400 focus:ring-4 focus:ring-blue-500/20" />
+                </label>
+                <label className="block text-sm font-medium text-slate-300">Vencimento
+                  <input type="date" value={debtDueDate} onChange={(e) => setDebtDueDate(e.target.value)} className="mt-1.5 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 text-slate-100 outline-none focus:border-cyan-400 focus:ring-4 focus:ring-blue-500/20" />
+                </label>
+                <label className="block text-sm font-medium text-slate-300">Tipo de dívida
+                  <select value={debtCategory} onChange={(e) => setDebtCategory(e.target.value)} className="mt-1.5 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 text-slate-100 outline-none focus:border-cyan-400 focus:ring-4 focus:ring-blue-500/20">
+                    {["Cartão de crédito","Empréstimo","Conta de casa","Financiamento","Compra parcelada","Dinheiro emprestado","Imposto","Outra"].map((item) => <option key={item}>{item}</option>)}
+                  </select>
+                </label>
+                <label className="block text-sm font-medium text-slate-300">Observações
+                  <input value={debtNote} onChange={(e) => setDebtNote(e.target.value)} placeholder="Ex.: parcela 2 de 5" className="mt-1.5 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 text-slate-100 outline-none placeholder:text-slate-600 focus:border-cyan-400 focus:ring-4 focus:ring-blue-500/20" />
+                </label>
+              </div>
+              <button type="submit" className="mt-4 inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-5 py-3 text-sm font-bold text-white shadow-[0_0_20px_rgba(37,99,235,0.2)] transition hover:brightness-110"><Plus size={17} /> Salvar dívida</button>
+            </form>
+
+            <div className="mt-6">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h4 className="font-bold text-white">Lista de dívidas</h4>
+                <span className="text-xs text-slate-400">{debts.length} cadastrada(s)</span>
+              </div>
+              {debts.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-blue-400/20 bg-[#080f1e]/60 px-4 py-9 text-center">
+                  <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-500/10 text-cyan-300"><HandCoins size={24} /></div>
+                  <p className="font-semibold text-slate-200">Você ainda não cadastrou dívidas</p>
+                  <p className="mt-1 text-sm text-slate-500">Use o formulário acima para começar sua lista.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {debts.map((debt) => {
+                    const overdue = !debt.paid && debt.dueDate && debt.dueDate < todayISO();
+                    return (
+                      <div key={debt.id} className={`flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center ${debt.paid ? "border-emerald-500/20 bg-emerald-950/10" : overdue ? "border-rose-400/30 bg-rose-950/10" : "border-blue-400/15 bg-[#080f1e]/80"}`}>
+                        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${debt.paid ? "bg-emerald-500/10 text-emerald-300" : overdue ? "bg-rose-500/10 text-rose-300" : "bg-blue-500/10 text-cyan-300"}`}>
+                          {debt.paid ? <Check size={20} /> : overdue ? <CircleAlert size={20} /> : <CalendarClock size={20} />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className={`font-semibold ${debt.paid ? "text-slate-400 line-through" : "text-white"}`}>{debt.name}</p>
+                            <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${debt.paid ? "bg-emerald-500/10 text-emerald-300" : overdue ? "bg-rose-500/10 text-rose-300" : "bg-blue-500/10 text-blue-300"}`}>{debt.paid ? "Quitada" : overdue ? "Vencida" : "Em aberto"}</span>
+                          </div>
+                          <p className="mt-1 text-xs text-slate-400">{debt.creditor} · {debt.category}{debt.dueDate ? ` · Vencimento: ${new Date(debt.dueDate + "T12:00:00").toLocaleDateString("pt-BR")}` : ""}</p>
+                          {debt.note && <p className="mt-1 text-xs text-slate-500">{debt.note}</p>}
+                        </div>
+                        <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end">
+                          <p className={`text-lg font-bold ${debt.paid ? "text-emerald-300" : "text-white"}`}>{money(debt.amount)}</p>
+                          <div className="flex gap-2">
+                            <button type="button" onClick={() => setDebts((current) => current.map((item) => item.id === debt.id ? { ...item, paid: !item.paid } : item))} className={`rounded-lg px-3 py-2 text-xs font-semibold ${debt.paid ? "border border-slate-700 text-slate-300 hover:bg-slate-800" : "bg-emerald-600/15 text-emerald-300 hover:bg-emerald-600/25"}`}>{debt.paid ? "Reabrir" : "Marcar paga"}</button>
+                            <button type="button" aria-label={`Excluir dívida ${debt.name}`} onClick={() => setDebts((current) => current.filter((item) => item.id !== debt.id))} className="rounded-lg border border-rose-500/20 px-3 py-2 text-xs font-semibold text-rose-300 hover:bg-rose-500/10"><Trash2 size={14} /></button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </section>
+
           <p className="text-center text-xs text-slate-400">Gestão Financeira pra Mim · Feito para facilitar sua rotina na barbearia.</p>
         </div>
       </main>
