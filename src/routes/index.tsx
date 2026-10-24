@@ -263,6 +263,26 @@ function FinanceDashboard() {
               <div className="grid grid-cols-7 gap-2 sm:gap-3">{weeklyDays.map((day) => <div key={day.date} className="min-w-0 rounded-xl bg-[#080f1e]/80 p-2 text-center sm:p-3"><p className="text-[10px] font-semibold uppercase text-slate-400 sm:text-xs">{day.label}</p><p className="mt-1 text-[10px] text-slate-500">{new Date(day.date + "T12:00:00").getDate()}</p><div className="mt-3 flex h-20 items-end justify-center gap-1 border-b border-slate-800 pb-1"><div title={"Entradas: " + money(day.income)} className="w-2/5 rounded-t bg-emerald-400 transition-all" style={{ height: (day.income / weeklyMax * 100) + "%", minHeight: day.income > 0 ? "4px" : "0" }} /><div title={"Saídas: " + money(day.expenses)} className="w-2/5 rounded-t bg-rose-400 transition-all" style={{ height: (day.expenses / weeklyMax * 100) + "%", minHeight: day.expenses > 0 ? "4px" : "0" }} /></div><p className="mt-2 text-[10px] font-semibold text-slate-300 sm:text-xs">{day.count} {day.count === 1 ? "item" : "itens"}</p></div>)}</div>
             </div>
           </section>
+          <section className="rounded-2xl border border-blue-400/20 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 shadow-[0_0_32px_rgba(37,99,235,0.08)] sm:p-6">
+            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+              <div><div className="flex items-center gap-2 text-blue-300"><ChartNoAxesCombined size={21} /><span className="text-xs font-bold uppercase tracking-[0.18em]">Fechamento mensal</span></div><h3 className="mt-2 text-xl font-bold">Total de lançamentos do mês</h3><p className="mt-1 text-sm text-slate-400">{new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</p></div>
+              <button onClick={() => setPeriod("month")} className="rounded-xl border border-blue-400/25 bg-blue-400/10 px-4 py-2.5 text-sm font-semibold text-blue-200 hover:bg-blue-400/15">Ver lançamentos do mês</button>
+            </div>
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-xl border border-blue-400/15 bg-[#080f1e] p-4"><p className="text-xs text-slate-400">Entradas do mês</p><p className="mt-1 text-xl font-bold text-emerald-300">{money(monthIncome)}</p></div>
+              <div className="rounded-xl border border-blue-400/15 bg-[#080f1e] p-4"><p className="text-xs text-slate-400">Saídas do mês</p><p className="mt-1 text-xl font-bold text-rose-300">{money(monthExpenses)}</p></div>
+              <div className="rounded-xl border border-blue-400/15 bg-[#080f1e] p-4"><p className="text-xs text-slate-400">Resultado mensal</p><p className={"mt-1 text-xl font-bold " + (monthIncome - monthExpenses >= 0 ? "text-cyan-300" : "text-rose-300")}>{money(monthIncome - monthExpenses)}</p></div>
+              <div className="rounded-xl border border-blue-400/15 bg-[#080f1e] p-4"><p className="text-xs text-slate-400">Lançamentos no mês</p><p className="mt-1 text-xl font-bold text-white">{movements.filter((m) => m.date.slice(0, 7) === todayISO().slice(0, 7)).length}</p><p className="mt-1 text-xs text-slate-500">{movements.filter((m) => m.type === "entrada" && m.date.slice(0, 7) === todayISO().slice(0, 7)).length} entradas · {movements.filter((m) => m.type === "saida" && m.date.slice(0, 7) === todayISO().slice(0, 7)).length} saídas</p></div>
+            </div>
+            <div className="mt-5 rounded-xl border border-blue-400/10 bg-[#080f1e]/70 p-4">
+              <div className="mb-2 flex items-center justify-between gap-3"><p className="text-sm font-semibold">Entradas versus saídas</p><p className="text-xs text-slate-500">Mês atual</p></div>
+              <div className="space-y-4">
+                <div><div className="mb-1.5 flex justify-between text-xs"><span className="text-emerald-300">Entradas</span><span className="text-slate-300">{money(monthIncome)}</span></div><div className="h-3 overflow-hidden rounded-full bg-[#182235]"><div className="h-full rounded-full bg-gradient-to-r from-emerald-600 to-emerald-300" style={{ width: (monthIncome / Math.max(monthIncome, monthExpenses, 1) * 100) + "%" }} /></div></div>
+                <div><div className="mb-1.5 flex justify-between text-xs"><span className="text-rose-300">Saídas</span><span className="text-slate-300">{money(monthExpenses)}</span></div><div className="h-3 overflow-hidden rounded-full bg-[#182235]"><div className="h-full rounded-full bg-gradient-to-r from-rose-600 to-rose-300" style={{ width: (monthExpenses / Math.max(monthIncome, monthExpenses, 1) * 100) + "%" }} /></div></div>
+              </div>
+            </div>
+          </section>
+
           <section className="rounded-2xl border border-blue-400/15 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.25)] transition duration-300 hover:border-blue-400/40 hover:shadow-[0_0_28px_rgba(37,99,235,0.10)] sm:p-6">
             <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
               <div>
