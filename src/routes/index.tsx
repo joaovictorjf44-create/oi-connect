@@ -45,8 +45,11 @@ type RecurringBill = {
   name: string;
   amount: number;
   category: string;
+  frequency?: "weekly" | "monthly";
   dueDay: number;
+  dueWeekday?: number;
   lastPaidMonth?: string;
+  lastPaidPeriod?: string;
 };
 
 type Budget = {
@@ -104,7 +107,9 @@ function FinanceDashboard() {
   const [billName, setBillName] = useState("");
   const [billAmount, setBillAmount] = useState("");
   const [billCategory, setBillCategory] = useState("Internet");
+  const [billFrequency, setBillFrequency] = useState<"weekly" | "monthly">("weekly");
   const [billDueDay, setBillDueDay] = useState("10");
+  const [billDueWeekday, setBillDueWeekday] = useState("1");
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [budgetCategory, setBudgetCategory] = useState("Alimentação");
   const [budgetLimit, setBudgetLimit] = useState("");
@@ -385,16 +390,22 @@ function FinanceDashboard() {
     event.preventDefault();
     const value = Number(billAmount.replace(",", "."));
     const due = Number(billDueDay);
-    if (!billName.trim() || !Number.isFinite(value) || value <= 0 || due < 1 || due > 31) return;
-    setBills((current) => [{ id: crypto.randomUUID(), name: billName.trim(), amount: value, category: billCategory, dueDay: due }, ...current]);
+    const weekday = Number(billDueWeekday);
+    if (!billName.trim() || !Number.isFinite(value) || value <= 0) return;
+    if (billFrequency === "monthly" && (due < 1 || due > 31)) return;
+    if (billFrequency === "weekly" && (weekday < 0 || weekday > 6)) return;
+    setBills((current) => [{ id: crypto.randomUUID(), name: billName.trim(), amount: value, category: billCategory, frequency: billFrequency, dueDay: due, dueWeekday: weekday }, ...current]);
     setBillName(""); setBillAmount("");
   }
 
   function payBill(bill: RecurringBill) {
-    if (bill.lastPaidMonth === currentMonth) return;
-    const item: Movement = { id: crypto.randomUUID(), type: "saida", description: bill.name, category: bill.category, amount: bill.amount, payment: "Pix", date: todayISO(), account: selectedAccount, note: "Conta recorrente" };
+    const frequency = bill.frequency || "monthly";
+    const periodKey = frequency === "weekly" ? "weekly:" + weekStartISO() : "monthly:" + currentMonth;
+    const alreadyPaid = bill.lastPaidPeriod ? bill.lastPaidPeriod === periodKey : frequency === "monthly" && bill.lastPaidMonth === currentMonth;
+    if (alreadyPaid) return;
+    const item: Movement = { id: crypto.randomUUID(), type: "saida", description: bill.name, category: bill.category, amount: bill.amount, payment: "Pix", date: todayISO(), account: selectedAccount, note: frequency === "weekly" ? "Conta recorrente semanal" : "Conta recorrente mensal" };
     setMovements((current) => [item, ...current]);
-    setBills((current) => current.map((entry) => entry.id === bill.id ? { ...entry, lastPaidMonth: currentMonth } : entry));
+    setBills((current) => current.map((entry) => entry.id === bill.id ? { ...entry, lastPaidMonth: frequency === "monthly" ? currentMonth : entry.lastPaidMonth, lastPaidPeriod: periodKey } : entry));
   }
 
   function saveBudget(event: React.FormEvent<HTMLFormElement>) {
@@ -656,15 +667,16 @@ function FinanceDashboard() {
           <section id="contas-recorrentes" className="scroll-mt-6 rounded-2xl border border-blue-400/20 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 sm:p-6">
             <div className="flex items-center gap-2 text-cyan-300"><Repeat size={21} /><span className="text-xs font-bold uppercase tracking-[0.18em]">Contas recorrentes</span></div>
             <h3 className="mt-2 text-xl font-bold">Não esqueça seus vencimentos</h3>
-            <p className="mt-1 text-sm text-slate-400">Cadastre contas mensais e registre o pagamento para lançar a despesa automaticamente.</p>
+            <p className="mt-1 text-sm text-slate-400">Cadastre contas semanais ou mensais. Ao registrar o pagamento, a despesa é lançada automaticamente.</p>
             <form onSubmit={saveBill} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <label className="text-sm text-slate-300">Nome da conta<input required value={billName} onChange={(e) => setBillName(e.target.value)} placeholder="Ex.: Internet" className="mt-1 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400" /></label>
-              <label className="text-sm text-slate-300">Valor mensal (R$)<input required type="number" min="0.01" step="0.01" value={billAmount} onChange={(e) => setBillAmount(e.target.value)} placeholder="99,90" className="mt-1 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400" /></label>
+              <label className="text-sm text-slate-300">Frequência<select value={billFrequency} onChange={(e) => setBillFrequency(e.target.value as "weekly" | "monthly")} className="mt-1 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400"><option value="weekly">Semanal</option><option value="monthly">Mensal</option></select></label>
+              <label className="text-sm text-slate-300">Valor {billFrequency === "weekly" ? "semanal" : "mensal"} (R$)<input required type="number" min="0.01" step="0.01" value={billAmount} onChange={(e) => setBillAmount(e.target.value)} placeholder="99,90" className="mt-1 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400" /></label>
               <label className="text-sm text-slate-300">Categoria<select value={billCategory} onChange={(e) => setBillCategory(e.target.value)} className="mt-1 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400">{["Aluguel","Água e energia","Internet","Materiais","Transporte","Assinaturas","Impostos","Outras despesas"].map((c) => <option key={c}>{c}</option>)}</select></label>
-              <label className="text-sm text-slate-300">Dia do vencimento<input required type="number" min="1" max="31" value={billDueDay} onChange={(e) => setBillDueDay(e.target.value)} className="mt-1 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400" /></label>
+              {billFrequency === "weekly" ? <label className="text-sm text-slate-300">Dia da semana<select value={billDueWeekday} onChange={(e) => setBillDueWeekday(e.target.value)} className="mt-1 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400">{[{value:"1",label:"Segunda-feira"},{value:"2",label:"Terça-feira"},{value:"3",label:"Quarta-feira"},{value:"4",label:"Quinta-feira"},{value:"5",label:"Sexta-feira"},{value:"6",label:"Sábado"},{value:"0",label:"Domingo"}].map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}</select></label> : <label className="text-sm text-slate-300">Dia do vencimento<input required type="number" min="1" max="31" value={billDueDay} onChange={(e) => setBillDueDay(e.target.value)} className="mt-1 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400" /></label>}
               <button className="rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-bold text-white sm:col-span-2 lg:col-span-4"><Plus size={16} className="mr-1 inline" /> Cadastrar conta recorrente</button>
             </form>
-            <div className="mt-5 space-y-3">{bills.length === 0 ? <p className="rounded-xl border border-dashed border-blue-400/20 p-5 text-center text-sm text-slate-400">Nenhuma conta recorrente cadastrada.</p> : bills.map((bill) => { const paidThisMonth = bill.lastPaidMonth === currentMonth; const overdue = !paidThisMonth && Number(todayISO().slice(8, 10)) > bill.dueDay; return <div key={bill.id} className="flex flex-col gap-3 rounded-xl border border-blue-400/15 bg-[#080f1e] p-4 sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><p className="font-semibold">{bill.name}</p><p className="mt-1 text-xs text-slate-400">{bill.category} · Vence todo dia {bill.dueDay}</p><p className={"mt-1 text-xs " + (paidThisMonth ? "text-emerald-300" : overdue ? "text-rose-300" : "text-amber-300")}>{paidThisMonth ? "Pago neste mês" : overdue ? "Vencimento passou — confira" : "Pendente neste mês"}</p></div><p className="text-lg font-bold">{money(bill.amount)}</p><div className="flex gap-2"><button disabled={paidThisMonth} onClick={() => payBill(bill)} className="rounded-lg bg-emerald-600/15 px-3 py-2 text-xs font-semibold text-emerald-300 disabled:opacity-40">{paidThisMonth ? "Já pago" : "Registrar pagamento"}</button><button aria-label="Excluir conta recorrente" onClick={() => setBills((current) => current.filter((b) => b.id !== bill.id))} className="rounded-lg border border-rose-500/20 px-3 py-2 text-xs text-rose-300"><Trash2 size={14} /></button></div></div> })}</div>
+            <div className="mt-5 space-y-3">{bills.length === 0 ? <p className="rounded-xl border border-dashed border-blue-400/20 p-5 text-center text-sm text-slate-400">Nenhuma conta recorrente cadastrada.</p> : bills.map((bill) => { const frequency = bill.frequency || "monthly"; const weekday = bill.dueWeekday ?? 1; const paidThisPeriod = bill.lastPaidPeriod ? bill.lastPaidPeriod === (frequency === "weekly" ? "weekly:" + weekStartISO() : "monthly:" + currentMonth) : frequency === "monthly" && bill.lastPaidMonth === currentMonth; const currentWeekday = new Date(todayISO() + "T12:00:00").getDay(); const overdue = !paidThisPeriod && (frequency === "weekly" ? currentWeekday > weekday && weekStartISO() === weekStartISO() : Number(todayISO().slice(8, 10)) > bill.dueDay); const weekdays: Record<number, string> = {0:"domingo",1:"segunda-feira",2:"terça-feira",3:"quarta-feira",4:"quinta-feira",5:"sexta-feira",6:"sábado"}; return <div key={bill.id} className="flex flex-col gap-3 rounded-xl border border-blue-400/15 bg-[#080f1e] p-4 sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><p className="font-semibold">{bill.name}</p><p className="mt-1 text-xs text-slate-400">{bill.category} · {frequency === "weekly" ? "Toda " + weekdays[weekday] : "Todo dia " + bill.dueDay + " de cada mês"}</p><p className={"mt-1 text-xs " + (paidThisPeriod ? "text-emerald-300" : overdue ? "text-rose-300" : "text-amber-300")}>{paidThisPeriod ? (frequency === "weekly" ? "Pago nesta semana" : "Pago neste mês") : overdue ? "Vencimento passou — confira" : (frequency === "weekly" ? "Pendente nesta semana" : "Pendente neste mês")}</p></div><p className="text-lg font-bold">{money(bill.amount)}</p><div className="flex gap-2"><button disabled={paidThisPeriod} onClick={() => payBill(bill)} className="rounded-lg bg-emerald-600/15 px-3 py-2 text-xs font-semibold text-emerald-300 disabled:opacity-40">{paidThisPeriod ? "Já pago" : "Registrar pagamento"}</button><button aria-label="Excluir conta recorrente" onClick={() => setBills((current) => current.filter((b) => b.id !== bill.id))} className="rounded-lg border border-rose-500/20 px-3 py-2 text-xs text-rose-300"><Trash2 size={14} /></button></div></div> })}</div>
           </section>
 
           <section id="backup-relatorios" className="scroll-mt-6 rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 sm:p-6">
