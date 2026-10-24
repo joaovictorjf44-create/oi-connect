@@ -125,6 +125,7 @@ function FinanceDashboard() {
   const [cloudSession, setCloudSession] = useState<CloudSession | null>(null);
   const [cloudMessage, setCloudMessage] = useState("");
   const [cloudBusy, setCloudBusy] = useState(false);
+  const [cloudSyncedUser, setCloudSyncedUser] = useState<string | null>(null);
   const [debtName, setDebtName] = useState("");
   const [debtCreditor, setDebtCreditor] = useState("");
   const [debtAmount, setDebtAmount] = useState("");
@@ -181,6 +182,35 @@ function FinanceDashboard() {
       localStorage.setItem(OPENING_BALANCES_STORAGE_KEY, JSON.stringify(openingBalances));
     }
   }, [movements, debts, goals, bills, budgets, accounts, openingBalances, loaded]);
+
+  useEffect(() => {
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const accessToken = hash.get("access_token");
+    const refreshToken = hash.get("refresh_token") || undefined;
+    if (!accessToken) return;
+    const config = cloudConfig();
+    if (!config.url || !config.key) {
+      setCloudMessage("O login Google retornou, mas falta configurar o Supabase no projeto.");
+      return;
+    }
+    let cancelled = false;
+    void fetch(config.url + "/auth/v1/user", {
+      headers: { apikey: config.key, Authorization: "Bearer " + accessToken },
+    }).then(async (response) => {
+      if (!response.ok) throw new Error("Não foi possível validar a conta Google no Supabase.");
+      return response.json();
+    }).then((user) => {
+      if (cancelled || !user?.id) return;
+      const session = { access_token: accessToken, refresh_token: refreshToken, user: { id: user.id, email: user.email } };
+      setCloudSession(session);
+      localStorage.setItem(CLOUD_SESSION_KEY, JSON.stringify(session));
+      setCloudMessage("Login Google realizado. Clique em “Sincronizar / recuperar” para carregar ou salvar seu financeiro pela primeira vez.");
+      window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+    }).catch((error) => {
+      if (!cancelled) setCloudMessage(error instanceof Error ? error.message : "Falha no login Google.");
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   const filtered = useMemo(() => movements.filter((item) => {
     if (period === "today") return item.date === todayISO();
@@ -285,6 +315,16 @@ function FinanceDashboard() {
     return payload;
   }
 
+  function loginGoogle() {
+    const config = cloudConfig();
+    if (!config.url || !config.key) {
+      setCloudMessage("Configure primeiro VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no Lovable.");
+      return;
+    }
+    const redirectTo = window.location.origin + window.location.pathname;
+    window.location.href = config.url + "/auth/v1/authorize?provider=google&redirect_to=" + encodeURIComponent(redirectTo);
+  }
+
   async function authenticateCloud(mode: "login" | "signup") {
     setCloudBusy(true); setCloudMessage("");
     try {
@@ -318,7 +358,8 @@ function FinanceDashboard() {
         setBudgets(Array.isArray(data.budgets) ? data.budgets : []);
         setAccounts(Array.isArray(data.accounts) && data.accounts.length ? data.accounts : DEFAULT_ACCOUNTS);
         setOpeningBalances(data.openingBalances && typeof data.openingBalances === "object" ? data.openingBalances : {});
-        setCloudMessage("Dados recuperados da nuvem. Para enviar alterações futuras, sincronize novamente.");
+        setCloudSyncedUser(cloudSession.user.id);
+        setCloudMessage("Dados recuperados da nuvem. Salvamento automático ativado para esta conta.");
       } else {
         const data = { movements, debts, goals, bills, budgets, accounts, openingBalances };
         await cloudRequest("/rest/v1/finance_snapshots?on_conflict=user_id", {
@@ -326,7 +367,8 @@ function FinanceDashboard() {
           headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
           body: JSON.stringify({ user_id: cloudSession.user.id, data, updated_at: new Date().toISOString() }),
         }, cloudSession.access_token);
-        setCloudMessage("Seus dados atuais foram enviados para a nuvem.");
+        setCloudSyncedUser(cloudSession.user.id);
+        setCloudMessage("Seus dados atuais foram enviados para a nuvem. Salvamento automático ativado.");
       }
     } catch (error) {
       setCloudMessage(error instanceof Error ? error.message : "Falha na sincronização. Verifique as instruções do Supabase.");
@@ -343,14 +385,22 @@ function FinanceDashboard() {
         headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
         body: JSON.stringify({ user_id: cloudSession.user.id, data, updated_at: new Date().toISOString() }),
       }, cloudSession.access_token);
+      setCloudSyncedUser(cloudSession.user.id);
       setCloudMessage("Sincronização concluída. Seus dados estão salvos na nuvem.");
     } catch (error) {
       setCloudMessage(error instanceof Error ? error.message : "Falha ao enviar dados.");
     } finally { setCloudBusy(false); }
   }
 
+  useEffect(() => {
+    if (!loaded || !cloudSession || cloudSyncedUser !== cloudSession.user.id) return;
+    const timer = window.setTimeout(() => { void pushCloudChanges(); }, 1200);
+    return () => window.clearTimeout(timer);
+  }, [loaded, cloudSession, cloudSyncedUser, movements, debts, goals, bills, budgets, accounts, openingBalances]);
+
   function logoutCloud() {
     setCloudSession(null);
+    setCloudSyncedUser(null);
     localStorage.removeItem(CLOUD_SESSION_KEY);
     setCloudMessage("Você saiu da conta. Seus dados locais continuam neste navegador.");
   }
@@ -752,14 +802,18 @@ function FinanceDashboard() {
             {backupMessage && <p className="mt-3 text-sm text-cyan-300" role="status">{backupMessage}</p>}
             <div className="mt-5 rounded-xl border border-blue-400/20 bg-[#080f1e] p-4 sm:p-5">
               <p className="flex items-center gap-2 font-semibold text-cyan-200"><Cloud size={18} /> Login e sincronização na nuvem</p>
-              <p className="mt-1 text-sm text-slate-400">Conecte sua conta para guardar seu financeiro no Supabase e acessar em outros dispositivos. Primeiro, configure as chaves e o banco conforme o arquivo SUPABASE_SETUP.md no GitHub.</p>
-              {cloudSession ? <div className="mt-4"><p className="text-sm text-emerald-300">Conectado como {cloudSession.user.email || "sua conta"}</p><div className="mt-3 flex flex-wrap gap-2"><button disabled={cloudBusy} onClick={syncCloud} className="rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"><Cloud size={16} className="mr-1 inline" /> {cloudBusy ? "Sincronizando..." : "Sincronizar / recuperar"}</button><button disabled={cloudBusy} onClick={pushCloudChanges} className="rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-200 disabled:opacity-50">Enviar alterações atuais</button><button disabled={cloudBusy} onClick={logoutCloud} className="rounded-xl border border-slate-700 px-4 py-3 text-sm text-slate-300">Sair</button></div></div> : <form onSubmit={(e) => { e.preventDefault(); void authenticateCloud("login"); }} className="mt-4 grid gap-3 sm:grid-cols-2">
+              <p className="mt-1 text-sm text-slate-400">Entre com Google ou e-mail. Sua conta Google identifica você; os dados financeiros são guardados com segurança no banco em nuvem Supabase, depois de configurar a conexão.</p>
+              {cloudSession ? <div className="mt-4"><p className="text-sm text-emerald-300">Conectado como {cloudSession.user.email || "sua conta"}</p><div className="mt-3 flex flex-wrap gap-2"><button disabled={cloudBusy} onClick={syncCloud} className="rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"><Cloud size={16} className="mr-1 inline" /> {cloudBusy ? "Sincronizando..." : "Sincronizar / recuperar"}</button><button disabled={cloudBusy} onClick={pushCloudChanges} className="rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-200 disabled:opacity-50">Enviar alterações atuais</button><button disabled={cloudBusy} onClick={logoutCloud} className="rounded-xl border border-slate-700 px-4 py-3 text-sm text-slate-300">Sair</button></div></div> : <div className="mt-4">
+                <button type="button" disabled={cloudBusy} onClick={loginGoogle} className="w-full rounded-xl border border-slate-500/40 bg-white px-4 py-3 text-sm font-bold text-slate-900 transition hover:bg-slate-100 disabled:opacity-50">Continuar com Google</button>
+                <div className="my-3 flex items-center gap-3 text-xs text-slate-500"><span className="h-px flex-1 bg-slate-700"></span>ou entre com e-mail<span className="h-px flex-1 bg-slate-700"></span></div>
+                <form onSubmit={(e) => { e.preventDefault(); void authenticateCloud("login"); }} className="grid gap-3 sm:grid-cols-2">
                 <label className="text-sm text-slate-300">E-mail<input required type="email" autoComplete="email" value={cloudEmail} onChange={(e) => setCloudEmail(e.target.value)} placeholder="voce@email.com" className="mt-1 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400" /></label>
                 <label className="text-sm text-slate-300">Senha<input required type="password" autoComplete="current-password" minLength={6} value={cloudPassword} onChange={(e) => setCloudPassword(e.target.value)} placeholder="Mínimo 6 caracteres" className="mt-1 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400" /></label>
                 <div className="flex flex-wrap gap-2 sm:col-span-2"><button disabled={cloudBusy} className="rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{cloudBusy ? "Aguarde..." : "Entrar"}</button><button type="button" disabled={cloudBusy} onClick={() => void authenticateCloud("signup")} className="rounded-xl border border-blue-400/25 bg-blue-500/10 px-4 py-3 text-sm font-semibold text-blue-200 disabled:opacity-50">Criar conta</button></div>
-              </form>}
+                </form>
+              </div>}
               {cloudMessage && <p className="mt-3 text-sm text-cyan-300" role="status">{cloudMessage}</p>}
-              <p className="mt-3 text-xs text-slate-500">A sincronização é manual: recupere a nuvem ao entrar em outro dispositivo e envie as alterações quando terminar. Faça backup antes de substituir dados.</p>
+              <p className="mt-3 text-xs text-slate-500">Após a primeira sincronização, as alterações são salvas automaticamente na nuvem. Configure o provedor Google e o banco no Supabase conforme SUPABASE_SETUP.md. Faça backup antes de recuperar dados de outra cópia.</p>
             </div>
           </section>
 
