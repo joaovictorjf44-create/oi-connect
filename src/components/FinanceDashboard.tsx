@@ -343,7 +343,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   async function pushCloudChanges(silent = false) {
     if (!silent) { setCloudBusy(true); setCloudMessage(""); }
     try {
-      await saveToCloud({ movements, debts, goals, bills, budgets, accounts, openingBalances });
+      await saveToCloud({ movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings });
       setLastSavedAt(new Date());
       if (!silent) setCloudMessage("Tudo salvo na sua conta.");
     } catch (error) {
@@ -395,6 +395,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
       setBudgets(Array.isArray(data.budgets) ? data.budgets : []);
       setAccounts(Array.isArray(data.accounts) && data.accounts.length ? data.accounts : DEFAULT_ACCOUNTS);
       setOpeningBalances(data.openingBalances && typeof data.openingBalances === "object" ? data.openingBalances : {});
+      setWeeklySavings(data.weeklySavings && data.weeklySavings.weekStart === weekStartISO() ? data.weeklySavings : { weekStart: weekStartISO(), saved: 0 });
       setBackupMessage("Backup restaurado com sucesso.");
     } catch {
       setBackupMessage("Não foi possível restaurar. Escolha um backup JSON válido deste aplicativo.");
