@@ -110,7 +110,7 @@ const weekStartISO = () => {
 };
 const weekEndISO = () => shiftISODate(weekStartISO(), 6);
 
-function FinanceDashboard() {
+export function FinanceDashboard({ user }: { user: DashboardUser }) {
   const [movements, setMovements] = useState<Movement[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [period, setPeriod] = useState<"today" | "week" | "month" | "all">("today");
@@ -144,13 +144,12 @@ function FinanceDashboard() {
   const [newAccount, setNewAccount] = useState("");
   const [selectedAccount, setSelectedAccount] = useState("Conta principal");
   const [backupMessage, setBackupMessage] = useState("");
-  const [cloudEmail, setCloudEmail] = useState("");
-  const [cloudPassword, setCloudPassword] = useState("");
-  const [cloudSession, setCloudSession] = useState<CloudSession | null>(null);
   const [cloudMessage, setCloudMessage] = useState("");
   const [cloudBusy, setCloudBusy] = useState(false);
   const [cloudSyncedUser, setCloudSyncedUser] = useState<string | null>(null);
-  const [authMode, setAuthMode] = useState<"login" | "signup" | "recovery">("login");
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [debtName, setDebtName] = useState("");
   const [debtCreditor, setDebtCreditor] = useState("");
   const [debtAmount, setDebtAmount] = useState("");
@@ -158,84 +157,68 @@ function FinanceDashboard() {
   const [debtCategory, setDebtCategory] = useState("Cartão de crédito");
   const [debtNote, setDebtNote] = useState("");
 
+  // Load this user's data from their account. On the very first login on this browser,
+  // the data that was saved here before login is moved into the account.
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) setMovements(JSON.parse(saved) as Movement[]);
-    } catch {
-      setMovements([]);
-    }
-    try {
-      const savedDebts = localStorage.getItem(DEBTS_STORAGE_KEY);
-      if (savedDebts) setDebts(JSON.parse(savedDebts) as Debt[]);
-    } catch { setDebts([]); }
-    try {
-      const savedGoals = localStorage.getItem(GOALS_STORAGE_KEY);
-      if (savedGoals) setGoals(JSON.parse(savedGoals) as SavingsGoal[]);
-    } catch { setGoals([]); }
-    try {
-      const savedBills = localStorage.getItem(BILLS_STORAGE_KEY);
-      if (savedBills) setBills(JSON.parse(savedBills) as RecurringBill[]);
-    } catch { setBills([]); }
-    try {
-      const savedBudgets = localStorage.getItem(BUDGETS_STORAGE_KEY);
-      if (savedBudgets) setBudgets(JSON.parse(savedBudgets) as Budget[]);
-    } catch { setBudgets([]); }
-    try {
-      const savedAccounts = localStorage.getItem(ACCOUNTS_STORAGE_KEY);
-      if (savedAccounts) setAccounts(JSON.parse(savedAccounts) as string[]);
-    } catch { setAccounts(DEFAULT_ACCOUNTS); }
-    try {
-      const savedOpeningBalances = localStorage.getItem(OPENING_BALANCES_STORAGE_KEY);
-      if (savedOpeningBalances) setOpeningBalances(JSON.parse(savedOpeningBalances) as Record<string, number>);
-    } catch { setOpeningBalances({}); }
-    try {
-      const session = localStorage.getItem(CLOUD_SESSION_KEY);
-      if (session) setCloudSession(JSON.parse(session) as CloudSession);
-    } catch { localStorage.removeItem(CLOUD_SESSION_KEY); }
-    setLoaded(true);
-  }, []);
-
-  useEffect(() => {
-    if (loaded) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(movements));
-      localStorage.setItem(DEBTS_STORAGE_KEY, JSON.stringify(debts));
-      localStorage.setItem(GOALS_STORAGE_KEY, JSON.stringify(goals));
-      localStorage.setItem(BILLS_STORAGE_KEY, JSON.stringify(bills));
-      localStorage.setItem(BUDGETS_STORAGE_KEY, JSON.stringify(budgets));
-      localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(accounts));
-      localStorage.setItem(OPENING_BALANCES_STORAGE_KEY, JSON.stringify(openingBalances));
-    }
-  }, [movements, debts, goals, bills, budgets, accounts, openingBalances, loaded]);
-
-  useEffect(() => {
-    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-    const accessToken = hash.get("access_token");
-    const refreshToken = hash.get("refresh_token") || undefined;
-    if (!accessToken) return;
-    const config = cloudConfig();
-    if (!config.url || !config.key) {
-      setCloudMessage("O login Google retornou, mas falta configurar o Supabase no projeto.");
-      return;
-    }
     let cancelled = false;
-    void fetch(config.url + "/auth/v1/user", {
-      headers: { apikey: config.key, Authorization: "Bearer " + accessToken },
-    }).then(async (response) => {
-      if (!response.ok) throw new Error("Não foi possível validar a conta Google no Supabase.");
-      return response.json();
-    }).then((user) => {
-      if (cancelled || !user?.id) return;
-      const session = { access_token: accessToken, refresh_token: refreshToken, user: { id: user.id, email: user.email } };
-      setCloudSession(session);
-      localStorage.setItem(CLOUD_SESSION_KEY, JSON.stringify(session));
-      setCloudMessage("Login Google realizado. Clique em “Sincronizar / recuperar” para carregar ou salvar seu financeiro pela primeira vez.");
-      window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
-    }).catch((error) => {
-      if (!cancelled) setCloudMessage(error instanceof Error ? error.message : "Falha no login Google.");
-    });
+    setLoaded(false);
+    setCloudSyncedUser(null);
+    void (async () => {
+      const { data: row, error } = await supabase
+        .from("finance_snapshots").select("data").eq("user_id", user.id).maybeSingle();
+      if (cancelled) return;
+      if (error) {
+        try {
+          const cached = localStorage.getItem(userCacheKey(user.id));
+          if (cached) applyData(JSON.parse(cached) as FinanceData);
+        } catch { /* sem cópia local */ }
+        setCloudMessage("Não foi possível carregar seus dados da nuvem agora. Clique em “Sincronizar / recuperar” para tentar de novo.");
+        setLoaded(true);
+        return;
+      }
+      const legacyOwner = localStorage.getItem(LEGACY_CLAIM_KEY);
+      if (row?.data) {
+        applyData(row.data as unknown as FinanceData);
+        if (!legacyOwner) localStorage.setItem(LEGACY_CLAIM_KEY, user.id);
+        setCloudSyncedUser(user.id);
+        setLoaded(true);
+        return;
+      }
+      let initial: FinanceData = {};
+      const legacy = readLegacyLocalData();
+      const hasLegacy = Object.values(legacy).some((value) => value !== undefined);
+      if (!legacyOwner && hasLegacy) {
+        initial = legacy;
+      }
+      applyData(initial);
+      try {
+        const { error: saveError } = await supabase
+          .from("finance_snapshots")
+          .upsert({ user_id: user.id, data: initial as unknown as Json }, { onConflict: "user_id" });
+        if (saveError) throw saveError;
+        if (!legacyOwner) {
+          localStorage.setItem(LEGACY_CLAIM_KEY, user.id);
+          if (hasLegacy) {
+            clearLegacyLocalData();
+            setCloudMessage("Os dados que estavam neste navegador foram salvos na sua conta.");
+          }
+        }
+        if (!cancelled) setCloudSyncedUser(user.id);
+      } catch {
+        if (!cancelled) setCloudMessage("Não foi possível criar seu espaço na nuvem agora. Clique em “Sincronizar / recuperar” para tentar de novo.");
+      }
+      if (!cancelled) setLoaded(true);
+    })();
     return () => { cancelled = true; };
-  }, []);
+  }, [user.id]);
+
+  // Per-user cache on this device, used only if the cloud is temporarily unreachable.
+  useEffect(() => {
+    if (!loaded || cloudSyncedUser !== user.id) return;
+    try {
+      localStorage.setItem(userCacheKey(user.id), JSON.stringify({ movements, debts, goals, bills, budgets, accounts, openingBalances }));
+    } catch { /* armazenamento cheio ou bloqueado */ }
+  }, [movements, debts, goals, bills, budgets, accounts, openingBalances, loaded, cloudSyncedUser, user.id]);
 
   const filtered = useMemo(() => movements.filter((item) => {
     if (period === "today") return item.date === todayISO();
