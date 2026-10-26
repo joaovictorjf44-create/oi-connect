@@ -529,7 +529,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
         </nav>
       </aside>
       {mobileMenu && <button className="fixed inset-0 z-20 bg-slate-950/30 lg:hidden" onClick={() => setMobileMenu(false)} aria-label="Fechar menu" />}
-      <main className="min-w-0 lg:ml-64">
+      <main id="visao-geral" className="min-w-0 lg:ml-64">
         <header className="flex items-center justify-between border-b border-blue-400/15 bg-[#080f1e]/90 backdrop-blur-xl px-4 py-4 sm:px-8">
           <div className="flex items-center gap-3">
             <button className="rounded-lg p-2 hover:bg-[#182235] lg:hidden" onClick={() => setMobileMenu(true)} aria-label="Abrir menu"><Menu size={21} /></button>
