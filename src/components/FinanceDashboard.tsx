@@ -72,7 +72,7 @@ const LEGACY_CLAIM_KEY = "gestao-financeira-pra-mim-legacy-claimed-by";
 const userCacheKey = (userId: string) => "gestao-financeira-pra-mim-cache-" + userId;
 type WeeklySavings = { weekStart: string; saved: number; workWeekdays?: number[] };
 type MonthlySavings = { month: string; saved: number; workDays: number; workWeekdays?: number[] };
-type DebtSavings = { month: string; saved: number; workWeekdays?: number[] };
+type DebtSavings = { month: string; saved: number; workWeekdays?: number[]; workDates?: string[] };
 type FinanceData = { movements?: Movement[] | undefined; debts?: Debt[] | undefined; goals?: SavingsGoal[] | undefined; bills?: RecurringBill[] | undefined; budgets?: Budget[] | undefined; accounts?: string[] | undefined; openingBalances?: Record<string, number> | undefined; weeklySavings?: WeeklySavings | undefined; monthlySavings?: MonthlySavings | undefined; debtSavings?: DebtSavings | undefined };
 export type DashboardUser = { id: string; email?: string | null };
 
@@ -457,35 +457,43 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   const debtSavingsCurrent = debtSavings.month === todayISO().slice(0, 7) ? debtSavings.saved : 0;
   const debtWorkWeekdays = debtSavings.workWeekdays?.length ? debtSavings.workWeekdays : [1, 3, 4, 5, 6];
   const debtSavingsRemaining = Math.max(0, debtTotal - debtSavingsCurrent);
-  const debtWorkdaysLeft = (() => {
-    const today = todayISO();
-    const [year, month] = today.slice(0, 7).split("-").map(Number);
+  const debtCalendarDates = (() => {
+    const [year, month] = todayISO().slice(0, 7).split("-").map(Number);
     const daysInMonth = new Date(year, month, 0).getDate();
-    let count = 0;
-    for (let day = Number(today.slice(8, 10)); day <= daysInMonth; day++) {
-      if (debtWorkWeekdays.includes(new Date(year, month - 1, day).getDay())) count++;
-    }
-    return count;
+    return Array.from({ length: daysInMonth }, (_, index) => {
+      const day = index + 1;
+      const iso = String(year) + "-" + String(month).padStart(2, "0") + "-" + String(day).padStart(2, "0");
+      return { iso, day, weekday: new Date(year, month - 1, day).getDay() };
+    });
   })();
+  const debtWorkDates = debtSavings.month === todayISO().slice(0, 7) && debtSavings.workDates?.length
+    ? debtSavings.workDates
+    : debtCalendarDates.filter((date) => date.weekday !== 2 && date.weekday !== 0).map((date) => date.iso);
+  const debtWorkdaysLeft = debtWorkDates.filter((date) => date >= todayISO()).length;
   const debtDailyTarget = debtSavingsRemaining / Math.max(1, debtWorkdaysLeft);
 
   function addDebtSavings(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const value = Number(debtDeposit.replace(",", "."));
     if (!Number.isFinite(value) || value <= 0) return;
-    setDebtSavings({ month: todayISO().slice(0, 7), saved: debtSavingsCurrent + value, workWeekdays: debtWorkWeekdays });
+    setDebtSavings({ month: todayISO().slice(0, 7), saved: debtSavingsCurrent + value, workWeekdays: debtWorkWeekdays, workDates: debtWorkDates });
     setDebtDeposit("");
   }
 
-  function toggleDebtWorkday(day: number) {
+  function toggleDebtWorkDate(date: string) {
     setDebtSavings((current) => {
-      const selected = current.workWeekdays?.length ? current.workWeekdays : [1, 3, 4, 5, 6];
-      const next = selected.includes(day) ? selected.filter((item) => item !== day) : [...selected, day].sort((a, b) => a - b);
-      if (!next.length) return current;
-      return { month: todayISO().slice(0, 7), saved: current.month === todayISO().slice(0, 7) ? current.saved : 0, workWeekdays: next };
+      const month = todayISO().slice(0, 7);
+      const [year, monthNumber] = month.split("-").map(Number);
+      const daysInMonth = new Date(year, monthNumber, 0).getDate();
+      const defaults = Array.from({ length: daysInMonth }, (_, index) => {
+        const day = index + 1;
+        return { iso: month + "-" + String(day).padStart(2, "0"), weekday: new Date(year, monthNumber - 1, day).getDay() };
+      }).filter((item) => item.weekday !== 2 && item.weekday !== 0).map((item) => item.iso);
+      const selected = current.month === month && current.workDates?.length ? current.workDates : defaults;
+      const next = selected.includes(date) ? selected.filter((item) => item !== date) : [...selected, date].sort();
+      return { month, saved: current.month === month ? current.saved : 0, workWeekdays: current.workWeekdays || [1, 3, 4, 5, 6], workDates: next };
     });
   }
-
 
   function toggleMonthlyWorkday(day: number) {
     setMonthlySavings((current) => {
@@ -979,12 +987,15 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
                 <div className="rounded-xl border border-amber-400/15 bg-[#080f1e] p-3"><p className="text-xs text-slate-400">Já separado neste mês</p><p className="mt-1 text-lg font-bold text-emerald-300">{money(debtSavingsCurrent)}</p></div>
                 <div className="rounded-xl border border-amber-400/15 bg-[#080f1e] p-3"><p className="text-xs text-slate-400">Ainda falta separar</p><p className="mt-1 text-lg font-bold text-rose-300">{money(debtSavingsRemaining)}</p></div>
               </div>
-              <div className="mt-4">
-                <p className="text-sm font-semibold text-slate-200">Selecione os dias em que você trabalha</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {[{day:1,label:"Segunda"},{day:2,label:"Terça"},{day:3,label:"Quarta"},{day:4,label:"Quinta"},{day:5,label:"Sexta"},{day:6,label:"Sábado"},{day:0,label:"Domingo"}].map(({day,label}) => { const selected = debtWorkWeekdays.includes(day); return <button key={day} type="button" aria-pressed={selected} onClick={() => toggleDebtWorkday(day)} className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${selected ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-slate-700 bg-[#050914] text-slate-400 hover:border-amber-400/40"}`}>{label}{selected ? " ✓" : ""}</button>; })}
+              <div className="mt-4 rounded-xl border border-amber-400/15 bg-[#080f1e] p-3 sm:p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-semibold text-slate-200">Calendário dos seus dias de trabalho</p><span className="text-xs text-slate-400">{new Date(todayISO() + "T12:00:00").toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</span></div>
+                <p className="mt-1 text-xs text-slate-500">Toque nos dias para marcar ou desmarcar. Terças e domingos começam desmarcados.</p>
+                <div className="mt-3 grid grid-cols-7 gap-1 text-center">
+                  {["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"].map((label) => <span key={label} className="py-1 text-[11px] font-semibold text-slate-500">{label}</span>)}
+                  {Array.from({ length: (new Date(Number(todayISO().slice(0,4)), Number(todayISO().slice(5,7))-1, 1).getDay()+6)%7 }, (_, i) => <span key={"blank-"+i} />)}
+                  {debtCalendarDates.map(({iso,day}) => { const selected = debtWorkDates.includes(iso); const past = iso < todayISO(); return <button key={iso} type="button" aria-pressed={selected} onClick={() => toggleDebtWorkDate(iso)} className={`min-h-9 rounded-lg border text-xs font-bold transition ${selected ? "border-amber-400 bg-amber-400/20 text-amber-200" : "border-slate-700 bg-[#050914] text-slate-500 hover:border-amber-400/40"} ${past ? "opacity-50" : ""}`}>{day}{selected ? " ✓" : ""}</button>; })}
                 </div>
-                <p className="mt-2 text-xs text-slate-500">Terça-feira e domingo ficam desmarcados por padrão. Restam {debtWorkdaysLeft} dia(s) de trabalho selecionado(s) neste mês, contando hoje.</p>
+                <p className="mt-3 text-xs text-slate-400">Dias de trabalho selecionados restantes neste mês: <strong className="text-amber-300">{debtWorkdaysLeft}</strong> (contando hoje). O valor diário é recalculado automaticamente.</p>
               </div>
               <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-[#182235]"><div className="h-full rounded-full bg-amber-400 transition-all" style={{width: `${debtTotal > 0 ? Math.min(100, debtSavingsCurrent / debtTotal * 100) : 0}%`}} /></div>
               <form onSubmit={addDebtSavings} className="mt-4 flex flex-col gap-3 sm:flex-row">
