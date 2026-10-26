@@ -315,7 +315,6 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
     setOpeningBalances(data.openingBalances && typeof data.openingBalances === "object" ? data.openingBalances : {});
       setWeeklySavings(data.weeklySavings && data.weeklySavings.weekStart === weekStartISO() ? data.weeklySavings : { weekStart: weekStartISO(), saved: 0 });
     setMonthlySavings(data.monthlySavings && data.monthlySavings.month === todayISO().slice(0, 7) ? data.monthlySavings : { month: todayISO().slice(0, 7), saved: 0, workDays: data.monthlySavings?.workDays || 22 });
-    setWeeklySavings(data.weeklySavings && data.weeklySavings.weekStart === weekStartISO() ? data.weeklySavings : { weekStart: weekStartISO(), saved: 0 });
   }
 
   async function saveToCloud(data: FinanceData) {
@@ -383,7 +382,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   }
 
   function exportBackup() {
-    const backup = { app: "Gestão Financeira pra Mim", version: 1, exportedAt: new Date().toISOString(), movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings };
+    const backup = { app: "Gestão Financeira pra Mim", version: 1, exportedAt: new Date().toISOString(), movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings };
     downloadFile("backup-gestao-financeira.json", JSON.stringify(backup, null, 2), "application/json");
   }
 
