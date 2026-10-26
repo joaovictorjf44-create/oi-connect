@@ -18,7 +18,7 @@ type Debt = {
   amount: number;
   dueDate: string;
   category: string;
-  note?: string;
+  note?: string | undefined;
   paid: boolean;
 };
 
@@ -31,7 +31,7 @@ type Movement = {
   payment: string;
   date: string;
   account?: string;
-  note?: string;
+  note?: string | undefined;
 };
 
 type SavingsGoal = {
@@ -49,7 +49,7 @@ type RecurringBill = {
   frequency?: "weekly" | "monthly";
   dueDay: number;
   dueWeekday?: number;
-  lastPaidMonth?: string;
+  lastPaidMonth?: string | undefined;
   lastPaidPeriod?: string;
 };
 
@@ -70,7 +70,7 @@ const DEFAULT_ACCOUNTS = ["Conta principal", "Carteira", "Banco", "Poupança"];
 // Legacy (pre-login) data lived in unscoped keys; it is handed to the first account that signs in on this browser.
 const LEGACY_CLAIM_KEY = "gestao-financeira-pra-mim-legacy-claimed-by";
 const userCacheKey = (userId: string) => "gestao-financeira-pra-mim-cache-" + userId;
-type FinanceData = { movements?: Movement[]; debts?: Debt[]; goals?: SavingsGoal[]; bills?: RecurringBill[]; budgets?: Budget[]; accounts?: string[]; openingBalances?: Record<string, number> };
+type FinanceData = { movements?: Movement[] | undefined; debts?: Debt[] | undefined; goals?: SavingsGoal[] | undefined; bills?: RecurringBill[] | undefined; budgets?: Budget[] | undefined; accounts?: string[] | undefined; openingBalances?: Record<string, number> | undefined };
 export type DashboardUser = { id: string; email?: string | null };
 
 function readLegacyLocalData(): FinanceData {
