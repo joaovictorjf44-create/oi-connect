@@ -70,7 +70,7 @@ const DEFAULT_ACCOUNTS = ["Conta principal", "Carteira", "Banco", "Poupança"];
 // Legacy (pre-login) data lived in unscoped keys; it is handed to the first account that signs in on this browser.
 const LEGACY_CLAIM_KEY = "gestao-financeira-pra-mim-legacy-claimed-by";
 const userCacheKey = (userId: string) => "gestao-financeira-pra-mim-cache-" + userId;
-type WeeklySavings = { weekStart: string; saved: number };
+type WeeklySavings = { weekStart: string; saved: number; workWeekdays?: number[] };
 type MonthlySavings = { month: string; saved: number; workDays: number };
 type FinanceData = { movements?: Movement[] | undefined; debts?: Debt[] | undefined; goals?: SavingsGoal[] | undefined; bills?: RecurringBill[] | undefined; budgets?: Budget[] | undefined; accounts?: string[] | undefined; openingBalances?: Record<string, number> | undefined; weeklySavings?: WeeklySavings | undefined; monthlySavings?: MonthlySavings | undefined };
 export type DashboardUser = { id: string; email?: string | null };
@@ -130,7 +130,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   const [goalTarget, setGoalTarget] = useState("");
   const [goalSaved, setGoalSaved] = useState("0");
   const [bills, setBills] = useState<RecurringBill[]>([]);
-  const [weeklySavings, setWeeklySavings] = useState<WeeklySavings>({ weekStart: weekStartISO(), saved: 0 });
+  const [weeklySavings, setWeeklySavings] = useState<WeeklySavings>({ weekStart: weekStartISO(), saved: 0, workWeekdays: [1, 3, 4, 5, 6] });
   const [dailyDeposit, setDailyDeposit] = useState("");
   const [monthlySavings, setMonthlySavings] = useState<MonthlySavings>({ month: todayISO().slice(0, 7), saved: 0, workDays: 22 });
   const [monthlyDeposit, setMonthlyDeposit] = useState("");
@@ -313,7 +313,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
     setBudgets(Array.isArray(data.budgets) ? data.budgets : []);
     setAccounts(Array.isArray(data.accounts) && data.accounts.length ? data.accounts : DEFAULT_ACCOUNTS);
     setOpeningBalances(data.openingBalances && typeof data.openingBalances === "object" ? data.openingBalances : {});
-      setWeeklySavings(data.weeklySavings && data.weeklySavings.weekStart === weekStartISO() ? data.weeklySavings : { weekStart: weekStartISO(), saved: 0 });
+      setWeeklySavings({ weekStart: weekStartISO(), saved: data.weeklySavings?.weekStart === weekStartISO() ? data.weeklySavings.saved : 0, workWeekdays: data.weeklySavings?.workWeekdays?.length ? data.weeklySavings.workWeekdays : [1, 3, 4, 5, 6] });
     setMonthlySavings(data.monthlySavings && data.monthlySavings.month === todayISO().slice(0, 7) ? data.monthlySavings : { month: todayISO().slice(0, 7), saved: 0, workDays: data.monthlySavings?.workDays || 22 });
   }
 
@@ -423,14 +423,15 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
 
   const weeklyBillsTotal = bills.filter((bill) => (bill.frequency || "monthly") === "weekly").reduce((sum, bill) => sum + bill.amount, 0);
   const weeklySavingsCurrent = weeklySavings.weekStart === weekStartISO() ? weeklySavings.saved : 0;
-  const weeklyDailyTarget = weeklyBillsTotal / 7;
+  const weeklyWorkdaysSelected = weeklySavings.workWeekdays?.length ? weeklySavings.workWeekdays : [1, 3, 4, 5, 6];
+  const weeklyDailyTarget = weeklyBillsTotal / Math.max(1, weeklyWorkdaysSelected.length);
   const weeklySavingsRemaining = Math.max(0, weeklyBillsTotal - weeklySavingsCurrent);
 
   function addWeeklySavings(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const value = Number(dailyDeposit.replace(",", "."));
     if (!Number.isFinite(value) || value <= 0) return;
-    setWeeklySavings({ weekStart: weekStartISO(), saved: weeklySavingsCurrent + value });
+    setWeeklySavings({ weekStart: weekStartISO(), saved: weeklySavingsCurrent + value, workWeekdays: weeklyWorkdaysSelected });
     setDailyDeposit("");
   }
 
@@ -833,6 +834,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
               <div className="rounded-xl border border-emerald-400/15 bg-[#080f1e] p-4"><p className="text-xs text-slate-400">Já juntado nesta semana</p><p className="mt-2 text-xl font-bold text-cyan-300">{money(weeklySavingsCurrent)}</p></div>
               <div className="rounded-xl border border-emerald-400/15 bg-[#080f1e] p-4"><p className="text-xs text-slate-400">Ainda falta juntar</p><p className="mt-2 text-xl font-bold text-amber-300">{money(weeklySavingsRemaining)}</p></div>
             </div>
+            <div className="mt-4 rounded-xl border border-emerald-400/15 bg-[#080f1e] p-4"><p className="mb-3 text-sm font-semibold text-slate-200">Selecione os dias em que você trabalha nesta semana</p><div className="flex flex-wrap gap-2">{[{value:1,label:"Segunda"},{value:2,label:"Terça"},{value:3,label:"Quarta"},{value:4,label:"Quinta"},{value:5,label:"Sexta"},{value:6,label:"Sábado"},{value:0,label:"Domingo"}].map((day) => { const selected = weeklyWorkdaysSelected.includes(day.value); return <button key={day.value} type="button" aria-pressed={selected} onClick={() => setWeeklySavings((current) => { const selectedDays = current.workWeekdays?.length ? current.workWeekdays : [1, 3, 4, 5, 6]; const next = selectedDays.includes(day.value) ? selectedDays.filter((item) => item !== day.value) : [...selectedDays, day.value].sort((a, b) => a - b); if (!next.length) return current; return { weekStart: weekStartISO(), saved: weeklySavingsCurrent, workWeekdays: next }; })} className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${selected ? "border-emerald-400 bg-emerald-400/20 text-emerald-200" : "border-slate-700 bg-[#050914] text-slate-400 hover:border-emerald-400/40"}`}>{day.label}{selected ? " ✓" : ""}</button>; })}</div><p className="mt-2 text-xs text-slate-500">Terça-feira e domingo ficam desmarcados por padrão. O valor diário é dividido pelos dias selecionados.</p></div>
             <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-[#182235]"><div className="h-full rounded-full bg-emerald-400 transition-all" style={{ width: `${weeklyBillsTotal > 0 ? Math.min(100, (weeklySavingsCurrent / weeklyBillsTotal) * 100) : 0}%` }} /></div>
             <form onSubmit={addWeeklySavings} className="mt-4 flex flex-col gap-3 sm:flex-row">
               <label className="flex-1 text-sm text-slate-300">Quanto você guardou hoje? (R$)<input required min="0.01" step="0.01" type="number" value={dailyDeposit} onChange={(e) => setDailyDeposit(e.target.value)} placeholder="Ex.: 20,00" className="mt-1 w-full rounded-xl border border-emerald-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-emerald-400" /></label>
