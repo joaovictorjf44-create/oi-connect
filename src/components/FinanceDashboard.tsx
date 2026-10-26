@@ -318,130 +318,67 @@ function FinanceDashboard() {
   }));
   const reportMovements = movements.slice().sort((a, b) => b.date.localeCompare(a.date));
 
-  function cloudConfig() {
-    const env = import.meta.env;
-    return { url: (env.VITE_SUPABASE_URL || "").replace(/\/$/, ""), key: env.VITE_SUPABASE_ANON_KEY || "" };
+  function applyData(data: FinanceData) {
+    setMovements(Array.isArray(data.movements) ? data.movements : []);
+    setDebts(Array.isArray(data.debts) ? data.debts : []);
+    setGoals(Array.isArray(data.goals) ? data.goals : []);
+    setBills(Array.isArray(data.bills) ? data.bills : []);
+    setBudgets(Array.isArray(data.budgets) ? data.budgets : []);
+    setAccounts(Array.isArray(data.accounts) && data.accounts.length ? data.accounts : DEFAULT_ACCOUNTS);
+    setOpeningBalances(data.openingBalances && typeof data.openingBalances === "object" ? data.openingBalances : {});
   }
 
-  async function cloudRequest(path: string, init: RequestInit = {}, token?: string) {
-    const config = cloudConfig();
-    if (!config.url || !config.key) throw new Error("Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no projeto para ativar a nuvem.");
-    const response = await fetch(config.url + path, {
-      ...init,
-      headers: {
-        apikey: config.key,
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: "Bearer " + token } : {}),
-        ...(init.headers || {}),
-      },
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload.msg || payload.message || payload.error_description || payload.error || "Falha ao comunicar com a nuvem.");
-    return payload;
-  }
-
-  function loginGoogle() {
-    const config = cloudConfig();
-    if (!config.url || !config.key) {
-      setCloudMessage("Configure primeiro VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no Lovable.");
-      return;
-    }
-    const redirectTo = window.location.origin + window.location.pathname;
-    window.location.href = config.url + "/auth/v1/authorize?provider=google&redirect_to=" + encodeURIComponent(redirectTo);
-  }
-
-  async function recoverCloudPassword() {
-    setCloudBusy(true);
-    setCloudMessage("");
-    try {
-      const config = cloudConfig();
-      if (!config.url || !config.key) throw new Error("O sistema de login ainda precisa ser configurado no Supabase.");
-      if (!cloudEmail.trim()) throw new Error("Digite seu e-mail para receber o link de recuperação.");
-      await cloudRequest("/auth/v1/recover", { method: "POST", body: JSON.stringify({ email: cloudEmail.trim(), redirect_to: window.location.origin + window.location.pathname }) });
-      setCloudMessage("Se esse e-mail estiver cadastrado, você receberá instruções para redefinir a senha.");
-    } catch (error) {
-      setCloudMessage(error instanceof Error ? error.message : "Não foi possível solicitar a recuperação.");
-    } finally { setCloudBusy(false); }
-  }
-
-  async function authenticateCloud(mode: "login" | "signup") {
-    setCloudBusy(true); setCloudMessage("");
-    try {
-      const result = await cloudRequest(mode === "login" ? "/auth/v1/token?grant_type=password" : "/auth/v1/signup", {
-        method: "POST",
-        body: JSON.stringify({ email: cloudEmail.trim(), password: cloudPassword }),
-      }) as CloudSession & { message?: string; identities?: unknown[] };
-      if (!result.access_token || !result.user?.id) {
-        setCloudMessage(mode === "signup" ? "Cadastro enviado. Se a confirmação por e-mail estiver ativada no Supabase, confirme seu e-mail e depois entre." : "Não foi possível entrar. Confira os dados e a configuração do Supabase.");
-        return;
-      }
-      setCloudSession(result);
-      localStorage.setItem(CLOUD_SESSION_KEY, JSON.stringify(result));
-      setCloudMessage("Conta conectada. Use “Sincronizar agora” para enviar ou recuperar seus dados.");
-    } catch (error) {
-      setCloudMessage(error instanceof Error ? error.message : "Não foi possível conectar.");
-    } finally { setCloudBusy(false); }
+  async function saveToCloud(data: FinanceData) {
+    const { error } = await supabase
+      .from("finance_snapshots")
+      .upsert({ user_id: user.id, data: data as unknown as Json }, { onConflict: "user_id" });
+    if (error) throw new Error(error.message);
   }
 
   async function syncCloud() {
-    if (!cloudSession) { setCloudMessage("Entre na sua conta antes de sincronizar."); return; }
     setCloudBusy(true); setCloudMessage("");
     try {
-      const rows = await cloudRequest("/rest/v1/finance_snapshots?select=data&user_id=eq." + encodeURIComponent(cloudSession.user.id) + "&limit=1", { method: "GET" }, cloudSession.access_token) as Array<{ data: { movements?: Movement[]; debts?: Debt[]; goals?: SavingsGoal[]; bills?: RecurringBill[]; budgets?: Budget[]; accounts?: string[]; openingBalances?: Record<string, number> } }>;
-      if (rows.length && rows[0].data) {
-        const data = rows[0].data;
-        setMovements(Array.isArray(data.movements) ? data.movements : []);
-        setDebts(Array.isArray(data.debts) ? data.debts : []);
-        setGoals(Array.isArray(data.goals) ? data.goals : []);
-        setBills(Array.isArray(data.bills) ? data.bills : []);
-        setBudgets(Array.isArray(data.budgets) ? data.budgets : []);
-        setAccounts(Array.isArray(data.accounts) && data.accounts.length ? data.accounts : DEFAULT_ACCOUNTS);
-        setOpeningBalances(data.openingBalances && typeof data.openingBalances === "object" ? data.openingBalances : {});
-        setCloudSyncedUser(cloudSession.user.id);
-        setCloudMessage("Dados recuperados da nuvem. Salvamento automático ativado para esta conta.");
+      const { data: row, error } = await supabase
+        .from("finance_snapshots").select("data").eq("user_id", user.id).maybeSingle();
+      if (error) throw new Error(error.message);
+      if (row?.data) {
+        applyData(row.data as unknown as FinanceData);
+        setCloudMessage("Dados recuperados da sua conta.");
       } else {
-        const data = { movements, debts, goals, bills, budgets, accounts, openingBalances };
-        await cloudRequest("/rest/v1/finance_snapshots?on_conflict=user_id", {
-          method: "POST",
-          headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
-          body: JSON.stringify({ user_id: cloudSession.user.id, data, updated_at: new Date().toISOString() }),
-        }, cloudSession.access_token);
-        setCloudSyncedUser(cloudSession.user.id);
-        setCloudMessage("Seus dados atuais foram enviados para a nuvem. Salvamento automático ativado.");
+        await saveToCloud({ movements, debts, goals, bills, budgets, accounts, openingBalances });
+        setCloudMessage("Seus dados atuais foram salvos na sua conta.");
       }
+      setCloudSyncedUser(user.id);
     } catch (error) {
-      setCloudMessage(error instanceof Error ? error.message : "Falha na sincronização. Verifique as instruções do Supabase.");
+      setCloudMessage(error instanceof Error ? "Falha ao sincronizar: " + error.message : "Falha ao sincronizar.");
     } finally { setCloudBusy(false); }
   }
 
-  async function pushCloudChanges() {
-    if (!cloudSession) return;
-    setCloudBusy(true); setCloudMessage("");
+  async function pushCloudChanges(silent = false) {
+    if (!silent) { setCloudBusy(true); setCloudMessage(""); }
     try {
-      const data = { movements, debts, goals, bills, budgets, accounts, openingBalances };
-      await cloudRequest("/rest/v1/finance_snapshots?on_conflict=user_id", {
-        method: "POST",
-        headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
-        body: JSON.stringify({ user_id: cloudSession.user.id, data, updated_at: new Date().toISOString() }),
-      }, cloudSession.access_token);
-      setCloudSyncedUser(cloudSession.user.id);
-      setCloudMessage("Sincronização concluída. Seus dados estão salvos na nuvem.");
+      await saveToCloud({ movements, debts, goals, bills, budgets, accounts, openingBalances });
+      setLastSavedAt(new Date());
+      if (!silent) setCloudMessage("Tudo salvo na sua conta.");
     } catch (error) {
-      setCloudMessage(error instanceof Error ? error.message : "Falha ao enviar dados.");
-    } finally { setCloudBusy(false); }
+      setCloudMessage(error instanceof Error ? "Não foi possível salvar na nuvem: " + error.message : "Não foi possível salvar na nuvem.");
+    } finally { if (!silent) setCloudBusy(false); }
   }
 
   useEffect(() => {
-    if (!loaded || !cloudSession || cloudSyncedUser !== cloudSession.user.id) return;
-    const timer = window.setTimeout(() => { void pushCloudChanges(); }, 1200);
+    if (!loaded || cloudSyncedUser !== user.id) return;
+    const timer = window.setTimeout(() => { void pushCloudChanges(true); }, 1200);
     return () => window.clearTimeout(timer);
-  }, [loaded, cloudSession, cloudSyncedUser, movements, debts, goals, bills, budgets, accounts, openingBalances]);
+  }, [loaded, cloudSyncedUser, user.id, movements, debts, goals, bills, budgets, accounts, openingBalances]);
 
-  function logoutCloud() {
-    setCloudSession(null);
-    setCloudSyncedUser(null);
-    localStorage.removeItem(CLOUD_SESSION_KEY);
-    setCloudMessage("Você saiu da conta. Seus dados locais continuam neste navegador.");
+  async function logoutCloud() {
+    if (cloudSyncedUser === user.id) {
+      try { await saveToCloud({ movements, debts, goals, bills, budgets, accounts, openingBalances }); } catch { /* cache local mantém os dados */ }
+    }
+    await queryClient.cancelQueries();
+    queryClient.clear();
+    await supabase.auth.signOut();
+    navigate({ to: "/auth", replace: true });
   }
 
   function downloadFile(filename: string, content: string, mimeType: string) {
