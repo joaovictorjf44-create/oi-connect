@@ -67,8 +67,31 @@ const BUDGETS_STORAGE_KEY = "gestao-financeira-pra-mim-budgets";
 const ACCOUNTS_STORAGE_KEY = "gestao-financeira-pra-mim-accounts";
 const OPENING_BALANCES_STORAGE_KEY = "gestao-financeira-pra-mim-opening-balances";
 const DEFAULT_ACCOUNTS = ["Conta principal", "Carteira", "Banco", "Poupança"];
-const CLOUD_SESSION_KEY = "gestao-financeira-pra-mim-cloud-session";
-type CloudSession = { access_token: string; refresh_token?: string; user: { id: string; email?: string } };
+// Legacy (pre-login) data lived in unscoped keys; it is handed to the first account that signs in on this browser.
+const LEGACY_CLAIM_KEY = "gestao-financeira-pra-mim-legacy-claimed-by";
+const userCacheKey = (userId: string) => "gestao-financeira-pra-mim-cache-" + userId;
+type FinanceData = { movements?: Movement[]; debts?: Debt[]; goals?: SavingsGoal[]; bills?: RecurringBill[]; budgets?: Budget[]; accounts?: string[]; openingBalances?: Record<string, number> };
+export type DashboardUser = { id: string; email?: string | null };
+
+function readLegacyLocalData(): FinanceData {
+  const read = <T,>(key: string): T | undefined => {
+    try { const raw = localStorage.getItem(key); return raw ? (JSON.parse(raw) as T) : undefined; } catch { return undefined; }
+  };
+  return {
+    movements: read<Movement[]>(STORAGE_KEY),
+    debts: read<Debt[]>(DEBTS_STORAGE_KEY),
+    goals: read<SavingsGoal[]>(GOALS_STORAGE_KEY),
+    bills: read<RecurringBill[]>(BILLS_STORAGE_KEY),
+    budgets: read<Budget[]>(BUDGETS_STORAGE_KEY),
+    accounts: read<string[]>(ACCOUNTS_STORAGE_KEY),
+    openingBalances: read<Record<string, number>>(OPENING_BALANCES_STORAGE_KEY),
+  };
+}
+
+function clearLegacyLocalData() {
+  [STORAGE_KEY, DEBTS_STORAGE_KEY, GOALS_STORAGE_KEY, BILLS_STORAGE_KEY, BUDGETS_STORAGE_KEY, ACCOUNTS_STORAGE_KEY, OPENING_BALANCES_STORAGE_KEY, "gestao-financeira-pra-mim-cloud-session"]
+    .forEach((key) => localStorage.removeItem(key));
+}
 const money = (value: number) =>
   value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const todayISO = () => {
