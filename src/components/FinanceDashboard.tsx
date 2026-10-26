@@ -115,9 +115,9 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   const [loaded, setLoaded] = useState(false);
   const [period, setPeriod] = useState<"today" | "week" | "month" | "all">("today");
   const [modal, setModal] = useState<"entrada" | "saida" | null>(null);
-  const [description, setDescription] = useState("Corte de cabelo");
+  const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("30");
-  const [category, setCategory] = useState("Corte");
+  const [category, setCategory] = useState("Outro serviço");
   const [payment, setPayment] = useState("Pix");
   const [date, setDate] = useState(todayISO());
   const [note, setNote] = useState("");
@@ -252,8 +252,6 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   const unpaidDebts = debts.filter((debt) => !debt.paid);
   const debtTotal = unpaidDebts.reduce((sum, debt) => sum + debt.amount, 0);
   const paidDebtTotal = debts.filter((debt) => debt.paid).reduce((sum, debt) => sum + debt.amount, 0);
-  const cuts = filtered.filter((m) => m.type === "entrada" && m.category === "Corte").length;
-  const avg = cuts ? filtered.filter((m) => m.type === "entrada" && m.category === "Corte").reduce((sum, m) => sum + m.amount, 0) / cuts : 0;
   const monthIncome = movements.filter((m) => m.type === "entrada" && m.date.slice(0, 7) === todayISO().slice(0, 7)).reduce((sum, m) => sum + m.amount, 0);
   const monthExpenses = movements.filter((m) => m.type === "saida" && m.date.slice(0, 7) === todayISO().slice(0, 7)).reduce((sum, m) => sum + m.amount, 0);
   const weeklyMovements = movements.filter((m) => m.date >= weekStartISO() && m.date <= weekEndISO());
@@ -444,11 +442,11 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
     setBudgetLimit("");
   }
 
-  function openModal(type: "entrada" | "saida", quickCut = false) {
+  function openModal(type: "entrada" | "saida") {
     setModal(type);
-    setDescription(quickCut ? "Corte de cabelo" : "");
-    setAmount(quickCut ? "30" : "");
-    setCategory(quickCut ? "Corte" : type === "entrada" ? "Outro serviço" : "Materiais");
+    setDescription("");
+    setAmount("");
+    setCategory(type === "entrada" ? "Outro serviço" : "Materiais");
     setPayment("Pix");
     setDate(todayISO());
     setNote("");
@@ -536,7 +534,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
         <header className="flex items-center justify-between border-b border-blue-400/15 bg-[#080f1e]/90 backdrop-blur-xl px-4 py-4 sm:px-8">
           <div className="flex items-center gap-3">
             <button className="rounded-lg p-2 hover:bg-[#182235] lg:hidden" onClick={() => setMobileMenu(true)} aria-label="Abrir menu"><Menu size={21} /></button>
-            <div><p className="text-sm font-semibold tracking-[0.18em] text-cyan-300">✦ SUA BARBEARIA, SOB CONTROLE</p><h1 className="text-xl font-bold tracking-tight sm:text-2xl">Visão geral</h1></div>
+            <div><p className="text-sm font-semibold tracking-[0.18em] text-cyan-300">✦ SUA VIDA FINANCEIRA, SOB CONTROLE</p><h1 className="text-xl font-bold tracking-tight sm:text-2xl">Visão geral</h1></div>
           </div>
           <div className="flex items-center gap-2">
             <div className="hidden items-center gap-2 rounded-xl border border-blue-400/20 bg-[#0b1220]/70 px-3 py-2 text-sm text-slate-300 md:flex"><CalendarDays size={16} /> {new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}</div>
@@ -549,7 +547,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
             <div><p className="text-sm font-semibold tracking-[0.18em] text-cyan-300">SEU FINANCEIRO EM UM SÓ LUGAR</p><h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Controle seu dinheiro.</h2><p className="mt-1 text-slate-400">Veja quanto entrou, quanto saiu e quanto sobrou.</p></div>
             <div className="flex flex-wrap gap-2">
               <button onClick={() => openModal("saida")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-[#101827] px-4 py-3 text-sm font-semibold text-slate-200 shadow-sm hover:bg-[#0b1220]"><ArrowUpRight size={17} className="text-rose-600" /> Registrar saída</button>
-              <button onClick={() => openModal("entrada", true)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-semibold text-white shadow-[0_0_22px_rgba(37,99,235,0.25)] transition hover:brightness-110"><Plus size={18} /> Registrar entrada</button>
+              <button onClick={() => openModal("entrada")} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-semibold text-white shadow-[0_0_22px_rgba(37,99,235,0.25)] transition hover:brightness-110"><Plus size={18} /> Registrar entrada</button>
             </div>
           </div>
 
@@ -557,7 +555,6 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
             <StatCard label="Saldo do período" value={money(balance)} icon={<Wallet size={20} />} tint="blue" caption="Entradas menos saídas" />
             <StatCard label="Total de entradas" value={money(income)} icon={<ArrowDownLeft size={20} />} tint="green" caption={period === "today" ? "Recebido hoje" : "Receitas registradas"} />
             <StatCard label="Total de saídas" value={money(expenses)} icon={<ArrowUpRight size={20} />} tint="red" caption={period === "today" ? "Despesas de hoje" : "Despesas registradas"} />
-            <StatCard label="Cortes registrados" value={String(cuts)} icon={<Scissors size={20} />} tint="purple" caption={cuts ? `Média por corte: ${money(avg)}` : "Comece registrando um corte"} />
           </div>
 
           <section className="rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 shadow-[0_0_32px_rgba(8,145,178,0.08)] sm:p-6">
@@ -679,7 +676,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
                 </div>
               </div>
               <div className="mt-5 space-y-1">
-                {filtered.length === 0 ? <div className="flex flex-col items-center py-12 text-center"><div className="mb-3 rounded-2xl bg-blue-950/50 p-4 text-blue-400"><ReceiptText size={25} /></div><p className="font-semibold">Nenhuma movimentação por aqui</p><p className="mt-1 max-w-xs text-sm text-slate-400">Registre seu primeiro corte ou uma despesa para começar a acompanhar seu financeiro.</p><button onClick={() => openModal("entrada", true)} className="mt-4 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-500"><Plus size={16} className="mr-1 inline" /> Registrar primeiro corte</button></div> :
+                {filtered.length === 0 ? <div className="flex flex-col items-center py-12 text-center"><div className="mb-3 rounded-2xl bg-blue-950/50 p-4 text-blue-400"><ReceiptText size={25} /></div><p className="font-semibold">Nenhuma movimentação por aqui</p><p className="mt-1 max-w-xs text-sm text-slate-400">Registre sua primeira entrada ou saída para começar a acompanhar seu financeiro.</p><button onClick={() => openModal("entrada")} className="mt-4 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-500"><Plus size={16} className="mr-1 inline" /> Registrar primeira entrada</button></div> :
                   filtered.slice(0, 12).map((m) => <div key={m.id} className="group flex items-center gap-3 border-b border-slate-800 py-3 last:border-0">
                     <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${m.type === "entrada" ? "bg-emerald-950/50 text-emerald-400" : "bg-rose-950/50 text-rose-400"}`}>{m.type === "entrada" ? <ArrowDownLeft size={19} /> : <ArrowUpRight size={19} />}</div>
                     <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{m.description}</p><p className="mt-0.5 text-xs text-slate-400">{m.category} · {new Date(m.date + "T12:00:00").toLocaleDateString("pt-BR")} · {m.payment} · {m.account || "Conta principal"}</p></div>
@@ -696,12 +693,6 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
                   <ProgressRow label="Saídas" value={monthExpenses} max={Math.max(monthIncome, monthExpenses, 1)} color="bg-rose-500" />
                 </div>
                 <div className="mt-5 rounded-xl bg-[#0b1220] p-4"><p className="text-sm text-slate-400">Resultado do mês</p><p className={`mt-1 text-2xl font-bold ${monthIncome - monthExpenses >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{money(monthIncome - monthExpenses)}</p></div>
-              </section>
-              <section className="rounded-2xl bg-gradient-to-br from-blue-950 via-[#0b1a35] to-[#050914] ring-1 ring-blue-400/20 shadow-[0_0_35px_rgba(37,99,235,0.12)] p-5 text-white shadow-sm sm:p-6">
-                <div className="flex items-center gap-2 text-cyan-200"><CircleDollarSign size={20} /><span className="text-sm font-semibold">Meta de atendimento</span></div>
-                <p className="mt-3 text-2xl font-bold">R$ 30,00 <span className="text-sm font-medium text-cyan-200">/ corte</span></p>
-                <p className="mt-1 text-sm text-cyan-200">Preço padrão do corte.</p>
-                <button onClick={() => openModal("entrada", true)} className="mt-4 w-full rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-bold text-white shadow-[0_0_20px_rgba(37,99,235,0.2)] hover:brightness-110"><Scissors size={16} className="mr-2 inline" /> Registrar um corte</button>
               </section>
             </div>
           </div>
@@ -894,7 +885,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
         <form onSubmit={saveMovement} className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-[#101827] p-5 shadow-2xl sm:rounded-3xl sm:p-7">
           <div className="mb-6 flex items-start justify-between"><div><div className={`mb-3 flex h-11 w-11 items-center justify-center rounded-2xl ${modal === "entrada" ? "bg-emerald-950/50 text-emerald-400" : "bg-rose-950/50 text-rose-400"}`}>{modal === "entrada" ? <ArrowDownLeft size={22} /> : <ArrowUpRight size={22} />}</div><h2 className="text-xl font-bold">{modal === "entrada" ? "Registrar entrada" : "Registrar saída"}</h2><p className="mt-1 text-sm text-slate-400">Preencha os dados da movimentação.</p></div><button type="button" onClick={() => setModal(null)} className="rounded-lg p-2 text-slate-400 hover:bg-[#182235]" aria-label="Fechar"><X size={20} /></button></div>
           <div className="space-y-4">
-            <label className="block text-sm font-semibold text-slate-200">Descrição<input required value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ex.: Corte de cabelo" className="mt-1.5 w-full rounded-xl border border-blue-400/20 bg-[#080f1e] px-3.5 py-3 font-normal outline-none focus:border-cyan-400 focus:ring-4 focus:ring-blue-500/20" /></label>
+            <label className="block text-sm font-semibold text-slate-200">Descrição<input required value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ex.: salário, venda ou serviço" className="mt-1.5 w-full rounded-xl border border-blue-400/20 bg-[#080f1e] px-3.5 py-3 font-normal outline-none focus:border-cyan-400 focus:ring-4 focus:ring-blue-500/20" /></label>
             <div className="grid grid-cols-2 gap-3">
               <label className="block text-sm font-semibold text-slate-200">Valor (R$)<input required min="0.01" step="0.01" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="30,00" className="mt-1.5 w-full rounded-xl border border-blue-400/20 bg-[#080f1e] px-3.5 py-3 font-normal outline-none focus:border-cyan-400 focus:ring-4 focus:ring-blue-500/20" /></label>
               <label className="block text-sm font-semibold text-slate-200">Data<input required type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1.5 w-full rounded-xl border border-blue-400/20 bg-[#080f1e] px-3 py-3 font-normal outline-none focus:border-cyan-400 focus:ring-4 focus:ring-blue-500/20" /></label>
