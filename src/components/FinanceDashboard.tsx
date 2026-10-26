@@ -71,7 +71,7 @@ const DEFAULT_ACCOUNTS = ["Conta principal", "Carteira", "Banco", "Poupança"];
 const LEGACY_CLAIM_KEY = "gestao-financeira-pra-mim-legacy-claimed-by";
 const userCacheKey = (userId: string) => "gestao-financeira-pra-mim-cache-" + userId;
 type WeeklySavings = { weekStart: string; saved: number; workWeekdays?: number[] };
-type MonthlySavings = { month: string; saved: number; workDays: number };
+type MonthlySavings = { month: string; saved: number; workDays: number; workWeekdays?: number[] };
 type FinanceData = { movements?: Movement[] | undefined; debts?: Debt[] | undefined; goals?: SavingsGoal[] | undefined; bills?: RecurringBill[] | undefined; budgets?: Budget[] | undefined; accounts?: string[] | undefined; openingBalances?: Record<string, number> | undefined; weeklySavings?: WeeklySavings | undefined; monthlySavings?: MonthlySavings | undefined };
 export type DashboardUser = { id: string; email?: string | null };
 
@@ -314,7 +314,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
     setAccounts(Array.isArray(data.accounts) && data.accounts.length ? data.accounts : DEFAULT_ACCOUNTS);
     setOpeningBalances(data.openingBalances && typeof data.openingBalances === "object" ? data.openingBalances : {});
       setWeeklySavings({ weekStart: weekStartISO(), saved: data.weeklySavings?.weekStart === weekStartISO() ? data.weeklySavings.saved : 0, workWeekdays: data.weeklySavings?.workWeekdays?.length ? data.weeklySavings.workWeekdays : [1, 3, 4, 5, 6] });
-    setMonthlySavings(data.monthlySavings && data.monthlySavings.month === todayISO().slice(0, 7) ? data.monthlySavings : { month: todayISO().slice(0, 7), saved: 0, workDays: data.monthlySavings?.workDays || 22 });
+    setMonthlySavings(data.monthlySavings ? { ...data.monthlySavings, workWeekdays: data.monthlySavings.workWeekdays?.length ? data.monthlySavings.workWeekdays : [1, 3, 4, 5, 6], ...(data.monthlySavings.month === todayISO().slice(0, 7) ? {} : { month: todayISO().slice(0, 7), saved: 0 }) } : { month: todayISO().slice(0, 7), saved: 0, workDays: 22, workWeekdays: [1, 3, 4, 5, 6] });
   }
 
   async function saveToCloud(data: FinanceData) {
@@ -437,20 +437,33 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
 
   const monthlyBillsTotal = bills.filter((bill) => (bill.frequency || "monthly") === "monthly").reduce((sum, bill) => sum + bill.amount, 0);
   const monthlySavingsCurrent = monthlySavings.month === todayISO().slice(0, 7) ? monthlySavings.saved : 0;
-  const monthlyWorkDays = monthlySavings.workDays || 22;
+  const monthlyWorkWeekdays = monthlySavings.workWeekdays?.length ? monthlySavings.workWeekdays : [1, 3, 4, 5, 6];
+  const monthlyWorkDays = (() => {
+    const [year, month] = todayISO().slice(0, 7).split("-").map(Number);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    let count = 0;
+    for (let day = 1; day <= daysInMonth; day++) {
+      if (monthlyWorkWeekdays.includes(new Date(year, month - 1, day).getDay())) count++;
+    }
+    return count;
+  })();
   const monthlyDailyTarget = monthlyBillsTotal / Math.max(1, monthlyWorkDays);
   const monthlySavingsRemaining = Math.max(0, monthlyBillsTotal - monthlySavingsCurrent);
 
-  function updateWorkDays(value: number) {
-    if (!Number.isInteger(value) || value < 1 || value > 31) return;
-    setMonthlySavings((current) => ({ month: todayISO().slice(0, 7), saved: current.month === todayISO().slice(0, 7) ? current.saved : 0, workDays: value }));
+  function toggleMonthlyWorkday(day: number) {
+    setMonthlySavings((current) => {
+      const selected = current.workWeekdays?.length ? current.workWeekdays : [1, 3, 4, 5, 6];
+      const next = selected.includes(day) ? selected.filter((item) => item !== day) : [...selected, day].sort((a, b) => a - b);
+      if (next.length === 0) return current;
+      return { month: todayISO().slice(0, 7), saved: current.month === todayISO().slice(0, 7) ? current.saved : 0, workDays: current.workDays || 22, workWeekdays: next };
+    });
   }
 
   function addMonthlySavings(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const value = Number(monthlyDeposit.replace(",", "."));
     if (!Number.isFinite(value) || value <= 0) return;
-    setMonthlySavings((current) => ({ month: todayISO().slice(0, 7), saved: monthlySavingsCurrent + value, workDays: current.workDays || 22 }));
+    setMonthlySavings((current) => ({ month: todayISO().slice(0, 7), saved: monthlySavingsCurrent + value, workDays: current.workDays || 22, workWeekdays: monthlyWorkWeekdays }));
     setMonthlyDeposit("");
   }
 
@@ -807,12 +820,17 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
               <div className="rounded-xl border border-cyan-400/15 bg-[#080f1e] p-4"><p className="text-xs text-slate-400">Já juntado neste mês</p><p className="mt-2 text-xl font-bold text-emerald-300">{money(monthlySavingsCurrent)}</p></div>
               <div className="rounded-xl border border-cyan-400/15 bg-[#080f1e] p-4"><p className="text-xs text-slate-400">Ainda falta juntar</p><p className="mt-2 text-xl font-bold text-amber-300">{money(monthlySavingsRemaining)}</p></div>
             </div>
-            <form onSubmit={(e) => { e.preventDefault(); updateWorkDays(Number((e.currentTarget.elements.namedItem("monthlyWorkDays") as HTMLInputElement).value)); }} className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
-              <label className="flex-1 text-sm text-slate-300">Quantos dias você trabalha por mês?
-                <input name="monthlyWorkDays" required type="number" min="1" max="31" step="1" defaultValue={monthlyWorkDays} key={monthlyWorkDays} className="mt-1 w-full rounded-xl border border-cyan-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400" />
-              </label>
-              <button type="submit" className="rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-5 py-3 text-sm font-bold text-cyan-200">Atualizar dias trabalhados</button>
-            </form>
+            <div className="mt-4 rounded-xl border border-cyan-400/15 bg-[#080f1e] p-4">
+              <p className="text-sm font-semibold text-slate-200">Selecione os dias em que você trabalha</p>
+              <p className="mt-1 text-xs text-slate-400">Terça-feira e domingo ficam desmarcados por padrão. A meta diária é calculada pelos dias selecionados que existem neste mês.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {[{ day: 1, label: "Segunda" }, { day: 2, label: "Terça" }, { day: 3, label: "Quarta" }, { day: 4, label: "Quinta" }, { day: 5, label: "Sexta" }, { day: 6, label: "Sábado" }, { day: 0, label: "Domingo" }].map(({ day, label }) => {
+                  const selected = monthlyWorkWeekdays.includes(day);
+                  return <button key={day} type="button" aria-pressed={selected} onClick={() => toggleMonthlyWorkday(day)} className={`rounded-xl border px-3 py-2 text-sm font-semibold transition ${selected ? "border-cyan-400 bg-cyan-500/15 text-cyan-200" : "border-slate-700 bg-[#050914] text-slate-400 hover:border-cyan-400/40"}`}>{selected ? "✓ " : ""}{label}</button>;
+                })}
+              </div>
+              <p className="mt-3 text-xs text-slate-400">Dias de trabalho neste mês: <span className="font-semibold text-cyan-200">{monthlyWorkDays}</span></p>
+            </div>
             <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-[#182235]"><div className="h-full rounded-full bg-cyan-400 transition-all" style={{ width: `${monthlyBillsTotal > 0 ? Math.min(100, (monthlySavingsCurrent / monthlyBillsTotal) * 100) : 0}%` }} /></div>
             <form onSubmit={addMonthlySavings} className="mt-4 flex flex-col gap-3 sm:flex-row">
               <label className="flex-1 text-sm text-slate-300">Quanto você separou hoje para as contas mensais? (R$)
