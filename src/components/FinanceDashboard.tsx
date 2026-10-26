@@ -72,7 +72,8 @@ const LEGACY_CLAIM_KEY = "gestao-financeira-pra-mim-legacy-claimed-by";
 const userCacheKey = (userId: string) => "gestao-financeira-pra-mim-cache-" + userId;
 type WeeklySavings = { weekStart: string; saved: number; workWeekdays?: number[] };
 type MonthlySavings = { month: string; saved: number; workDays: number; workWeekdays?: number[] };
-type FinanceData = { movements?: Movement[] | undefined; debts?: Debt[] | undefined; goals?: SavingsGoal[] | undefined; bills?: RecurringBill[] | undefined; budgets?: Budget[] | undefined; accounts?: string[] | undefined; openingBalances?: Record<string, number> | undefined; weeklySavings?: WeeklySavings | undefined; monthlySavings?: MonthlySavings | undefined };
+type DebtSavings = { month: string; saved: number; workWeekdays?: number[] };
+type FinanceData = { movements?: Movement[] | undefined; debts?: Debt[] | undefined; goals?: SavingsGoal[] | undefined; bills?: RecurringBill[] | undefined; budgets?: Budget[] | undefined; accounts?: string[] | undefined; openingBalances?: Record<string, number> | undefined; weeklySavings?: WeeklySavings | undefined; monthlySavings?: MonthlySavings | undefined; debtSavings?: DebtSavings | undefined };
 export type DashboardUser = { id: string; email?: string | null };
 
 function readLegacyLocalData(): FinanceData {
@@ -133,6 +134,8 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   const [weeklySavings, setWeeklySavings] = useState<WeeklySavings>({ weekStart: weekStartISO(), saved: 0, workWeekdays: [1, 3, 4, 5, 6] });
   const [dailyDeposit, setDailyDeposit] = useState("");
   const [monthlySavings, setMonthlySavings] = useState<MonthlySavings>({ month: todayISO().slice(0, 7), saved: 0, workDays: 22 });
+  const [debtSavings, setDebtSavings] = useState<DebtSavings>({ month: todayISO().slice(0, 7), saved: 0, workWeekdays: [1, 3, 4, 5, 6] });
+  const [debtDeposit, setDebtDeposit] = useState("");
   const [monthlyDeposit, setMonthlyDeposit] = useState("");
   const [billName, setBillName] = useState("");
   const [billAmount, setBillAmount] = useState("");
@@ -222,9 +225,9 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   useEffect(() => {
     if (!loaded || cloudSyncedUser !== user.id) return;
     try {
-      localStorage.setItem(userCacheKey(user.id), JSON.stringify({ movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings }));
+      localStorage.setItem(userCacheKey(user.id), JSON.stringify({ movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings, debtSavings }));
     } catch { /* armazenamento cheio ou bloqueado */ }
-  }, [movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings, loaded, cloudSyncedUser, user.id]);
+  }, [movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings, debtSavings, loaded, cloudSyncedUser, user.id]);
 
   const filtered = useMemo(() => movements.filter((item) => {
     if (period === "today") return item.date === todayISO();
@@ -315,6 +318,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
     setOpeningBalances(data.openingBalances && typeof data.openingBalances === "object" ? data.openingBalances : {});
       setWeeklySavings({ weekStart: weekStartISO(), saved: data.weeklySavings?.weekStart === weekStartISO() ? data.weeklySavings.saved : 0, workWeekdays: data.weeklySavings?.workWeekdays?.length ? data.weeklySavings.workWeekdays : [1, 3, 4, 5, 6] });
     setMonthlySavings(data.monthlySavings ? { ...data.monthlySavings, workWeekdays: data.monthlySavings.workWeekdays?.length ? data.monthlySavings.workWeekdays : [1, 3, 4, 5, 6], ...(data.monthlySavings.month === todayISO().slice(0, 7) ? {} : { month: todayISO().slice(0, 7), saved: 0 }) } : { month: todayISO().slice(0, 7), saved: 0, workDays: 22, workWeekdays: [1, 3, 4, 5, 6] });
+    setDebtSavings(data.debtSavings ? { ...data.debtSavings, workWeekdays: data.debtSavings.workWeekdays?.length ? data.debtSavings.workWeekdays : [1, 3, 4, 5, 6], ...(data.debtSavings.month === todayISO().slice(0, 7) ? {} : { month: todayISO().slice(0, 7), saved: 0 }) } : { month: todayISO().slice(0, 7), saved: 0, workWeekdays: [1, 3, 4, 5, 6] });
   }
 
   async function saveToCloud(data: FinanceData) {
@@ -334,7 +338,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
         applyData(row.data as unknown as FinanceData);
         setCloudMessage("Dados recuperados da sua conta.");
       } else {
-        await saveToCloud({ movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings });
+        await saveToCloud({ movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings, debtSavings });
         setCloudMessage("Seus dados atuais foram salvos na sua conta.");
       }
       setCloudSyncedUser(user.id);
@@ -358,7 +362,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
     if (!loaded || cloudSyncedUser !== user.id) return;
     const timer = window.setTimeout(() => { void pushCloudChanges(true); }, 1200);
     return () => window.clearTimeout(timer);
-  }, [loaded, cloudSyncedUser, user.id, movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings]);
+  }, [loaded, cloudSyncedUser, user.id, movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings, debtSavings]);
 
   async function logoutCloud() {
     if (cloudSyncedUser === user.id) {
@@ -382,14 +386,14 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   }
 
   function exportBackup() {
-    const backup = { app: "Gestão Financeira pra Mim", version: 1, exportedAt: new Date().toISOString(), movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings };
+    const backup = { app: "Gestão Financeira pra Mim", version: 1, exportedAt: new Date().toISOString(), movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings, debtSavings };
     downloadFile("backup-gestao-financeira.json", JSON.stringify(backup, null, 2), "application/json");
   }
 
   async function importBackup(file?: File) {
     if (!file) return;
     try {
-      const data = JSON.parse(await file.text()) as Partial<{ movements: Movement[]; debts: Debt[]; goals: SavingsGoal[]; bills: RecurringBill[]; budgets: Budget[]; accounts: string[]; openingBalances: Record<string, number>; weeklySavings: WeeklySavings; monthlySavings: MonthlySavings }>;
+      const data = JSON.parse(await file.text()) as Partial<{ movements: Movement[]; debts: Debt[]; goals: SavingsGoal[]; bills: RecurringBill[]; budgets: Budget[]; accounts: string[]; openingBalances: Record<string, number>; weeklySavings: WeeklySavings; monthlySavings: MonthlySavings; debtSavings: DebtSavings }>;
       if (!Array.isArray(data.movements) || !Array.isArray(data.debts)) throw new Error("Arquivo inválido");
       setMovements(data.movements);
       setDebts(data.debts);
@@ -398,7 +402,8 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
       setBudgets(Array.isArray(data.budgets) ? data.budgets : []);
       setAccounts(Array.isArray(data.accounts) && data.accounts.length ? data.accounts : DEFAULT_ACCOUNTS);
       setOpeningBalances(data.openingBalances && typeof data.openingBalances === "object" ? data.openingBalances : {});
-      setWeeklySavings(data.weeklySavings && data.weeklySavings.weekStart === weekStartISO() ? data.weeklySavings : { weekStart: weekStartISO(), saved: 0 });
+      setWeeklySavings(data.weeklySavings && data.weeklySavings.weekStart === weekStartISO() ? data.weeklySavings : { weekStart: weekStartISO(), saved: 0, workWeekdays: [1, 3, 4, 5, 6] });
+      setDebtSavings(data.debtSavings && data.debtSavings.month === todayISO().slice(0, 7) ? data.debtSavings : { month: todayISO().slice(0, 7), saved: 0, workWeekdays: data.debtSavings?.workWeekdays?.length ? data.debtSavings.workWeekdays : [1, 3, 4, 5, 6] });
       setBackupMessage("Backup restaurado com sucesso.");
     } catch {
       setBackupMessage("Não foi possível restaurar. Escolha um backup JSON válido deste aplicativo.");
@@ -449,6 +454,38 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   })();
   const monthlyDailyTarget = monthlyBillsTotal / Math.max(1, monthlyWorkDays);
   const monthlySavingsRemaining = Math.max(0, monthlyBillsTotal - monthlySavingsCurrent);
+  const debtSavingsCurrent = debtSavings.month === todayISO().slice(0, 7) ? debtSavings.saved : 0;
+  const debtWorkWeekdays = debtSavings.workWeekdays?.length ? debtSavings.workWeekdays : [1, 3, 4, 5, 6];
+  const debtSavingsRemaining = Math.max(0, debtTotal - debtSavingsCurrent);
+  const debtWorkdaysLeft = (() => {
+    const today = todayISO();
+    const [year, month] = today.slice(0, 7).split("-").map(Number);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    let count = 0;
+    for (let day = Number(today.slice(8, 10)); day <= daysInMonth; day++) {
+      if (debtWorkWeekdays.includes(new Date(year, month - 1, day).getDay())) count++;
+    }
+    return count;
+  })();
+  const debtDailyTarget = debtSavingsRemaining / Math.max(1, debtWorkdaysLeft);
+
+  function addDebtSavings(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const value = Number(debtDeposit.replace(",", "."));
+    if (!Number.isFinite(value) || value <= 0) return;
+    setDebtSavings({ month: todayISO().slice(0, 7), saved: debtSavingsCurrent + value, workWeekdays: debtWorkWeekdays });
+    setDebtDeposit("");
+  }
+
+  function toggleDebtWorkday(day: number) {
+    setDebtSavings((current) => {
+      const selected = current.workWeekdays?.length ? current.workWeekdays : [1, 3, 4, 5, 6];
+      const next = selected.includes(day) ? selected.filter((item) => item !== day) : [...selected, day].sort((a, b) => a - b);
+      if (!next.length) return current;
+      return { month: todayISO().slice(0, 7), saved: current.month === todayISO().slice(0, 7) ? current.saved : 0, workWeekdays: next };
+    });
+  }
+
 
   function toggleMonthlyWorkday(day: number) {
     setMonthlySavings((current) => {
@@ -930,6 +967,33 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
                 <p className="text-xs text-slate-400">Total já quitado</p>
                 <p className="mt-1 text-xl font-bold text-emerald-300">{money(paidDebtTotal)}</p>
               </div>
+            </div>
+
+            <div className="mt-5 rounded-2xl border border-amber-400/20 bg-gradient-to-br from-[#241c10] to-[#0b1220] p-4 sm:p-5">
+              <div className="flex items-center gap-2 text-amber-300"><PiggyBank size={21} /><span className="text-xs font-bold uppercase tracking-[0.18em]">Plano para quitar as dívidas</span></div>
+              <h4 className="mt-2 text-lg font-bold text-white">Quanto separar por dia para pagar suas dívidas</h4>
+              <p className="mt-1 text-sm text-slate-400">A meta usa o total das dívidas em aberto e divide o que falta juntar pelos dias de trabalho selecionados que restam neste mês.</p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-xl border border-amber-400/15 bg-[#080f1e] p-3"><p className="text-xs text-slate-400">Dívidas em aberto</p><p className="mt-1 text-lg font-bold text-white">{money(debtTotal)}</p></div>
+                <div className="rounded-xl border border-amber-400/15 bg-[#080f1e] p-3"><p className="text-xs text-slate-400">Separar por dia trabalhado</p><p className="mt-1 text-lg font-bold text-amber-300">{money(debtDailyTarget)}</p></div>
+                <div className="rounded-xl border border-amber-400/15 bg-[#080f1e] p-3"><p className="text-xs text-slate-400">Já separado neste mês</p><p className="mt-1 text-lg font-bold text-emerald-300">{money(debtSavingsCurrent)}</p></div>
+                <div className="rounded-xl border border-amber-400/15 bg-[#080f1e] p-3"><p className="text-xs text-slate-400">Ainda falta separar</p><p className="mt-1 text-lg font-bold text-rose-300">{money(debtSavingsRemaining)}</p></div>
+              </div>
+              <div className="mt-4">
+                <p className="text-sm font-semibold text-slate-200">Selecione os dias em que você trabalha</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {[{day:1,label:"Segunda"},{day:2,label:"Terça"},{day:3,label:"Quarta"},{day:4,label:"Quinta"},{day:5,label:"Sexta"},{day:6,label:"Sábado"},{day:0,label:"Domingo"}].map(({day,label}) => { const selected = debtWorkWeekdays.includes(day); return <button key={day} type="button" aria-pressed={selected} onClick={() => toggleDebtWorkday(day)} className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${selected ? "border-amber-400 bg-amber-400/15 text-amber-200" : "border-slate-700 bg-[#050914] text-slate-400 hover:border-amber-400/40"}`}>{label}{selected ? " ✓" : ""}</button>; })}
+                </div>
+                <p className="mt-2 text-xs text-slate-500">Terça-feira e domingo ficam desmarcados por padrão. Restam {debtWorkdaysLeft} dia(s) de trabalho selecionado(s) neste mês, contando hoje.</p>
+              </div>
+              <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-[#182235]"><div className="h-full rounded-full bg-amber-400 transition-all" style={{width: `${debtTotal > 0 ? Math.min(100, debtSavingsCurrent / debtTotal * 100) : 0}%`}} /></div>
+              <form onSubmit={addDebtSavings} className="mt-4 flex flex-col gap-3 sm:flex-row">
+                <label className="flex-1 text-sm text-slate-300">Quanto você separou hoje para as dívidas? (R$)
+                  <input required min="0.01" step="0.01" type="number" value={debtDeposit} onChange={(e) => setDebtDeposit(e.target.value)} placeholder="Ex.: 25,00" className="mt-1 w-full rounded-xl border border-amber-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-amber-400" />
+                </label>
+                <button type="submit" className="self-end rounded-xl bg-amber-600 px-5 py-3 text-sm font-bold text-white hover:bg-amber-500"><Plus size={16} className="mr-1 inline" /> Somar valor separado</button>
+              </form>
+              {debtSavingsRemaining === 0 && debtTotal > 0 && <p className="mt-3 text-sm font-semibold text-emerald-300">Você já separou o suficiente para cobrir as dívidas em aberto!</p>}
             </div>
 
             <form onSubmit={saveDebt} className="mt-5 rounded-xl border border-blue-400/15 bg-[#080f1e]/80 p-4 sm:p-5">
