@@ -578,7 +578,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   function saveMovement(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const numericAmount = Number(amount.replace(",", "."));
-    if (!description.trim() || !Number.isFinite(numericAmount) || numericAmount <= 0) return;
+    if (!description.trim() || !Number.isFinite(numericAmount) || numericAmount <= 0 || (modal === "entrada" && category === "Corte" && numericAmount < 10)) return;
     const item: Movement = {
       id: crypto.randomUUID(),
       type: modal ?? "entrada",
@@ -1087,7 +1087,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
           <div className="space-y-4">
             <label className="block text-sm font-semibold text-slate-200">Descrição<input required value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ex.: salário, venda ou serviço" className="mt-1.5 w-full rounded-xl border border-blue-400/20 bg-[#080f1e] px-3.5 py-3 font-normal outline-none focus:border-cyan-400 focus:ring-4 focus:ring-blue-500/20" /></label>
             <div className="grid grid-cols-2 gap-3">
-              <label className="block text-sm font-semibold text-slate-200">Valor (R$)<input required min="0.01" step="0.01" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="30,00" className="mt-1.5 w-full rounded-xl border border-blue-400/20 bg-[#080f1e] px-3.5 py-3 font-normal outline-none focus:border-cyan-400 focus:ring-4 focus:ring-blue-500/20" /></label>
+              <label className="block text-sm font-semibold text-slate-200">Valor (R$)<input required min={modal === "entrada" && category === "Corte" ? "10" : "0.01"} step="0.01" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={modal === "entrada" && category === "Corte" ? "Mínimo 10,00" : "30,00"} className="mt-1.5 w-full rounded-xl border border-blue-400/20 bg-[#080f1e] px-3.5 py-3 font-normal outline-none focus:border-cyan-400 focus:ring-4 focus:ring-blue-500/20" /></label>
               <label className="block text-sm font-semibold text-slate-200">Data<input required type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1.5 w-full rounded-xl border border-blue-400/20 bg-[#080f1e] px-3 py-3 font-normal outline-none focus:border-cyan-400 focus:ring-4 focus:ring-blue-500/20" /></label>
             </div>
             <label className="block text-sm font-semibold text-slate-200">Categoria<select value={category} onChange={(e) => setCategory(e.target.value)} className="mt-1.5 w-full rounded-xl border border-blue-400/20 bg-[#080f1e] px-3.5 py-3 font-normal outline-none focus:border-cyan-400 focus:ring-4 focus:ring-blue-500/20">{(modal === "entrada" ? ["Corte","Barba","Combo corte e barba","Sobrancelha","Gorjeta","Venda de produto","Outro serviço"] : ["Materiais","Aluguel","Água e energia","Internet","Manutenção","Transporte","Alimentação","Outras despesas"]).map((item) => <option key={item}>{item}</option>)}</select></label>
