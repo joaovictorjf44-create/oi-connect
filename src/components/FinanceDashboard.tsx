@@ -502,6 +502,14 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
     return <CreditCard size={15} />;
   };
 
+  if (!loaded) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#050914] text-slate-300">
+        <div className="flex items-center gap-3"><span className="h-5 w-5 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" /> Carregando seus dados...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_right,_rgba(29,78,216,0.16),_transparent_40%),linear-gradient(135deg,#050914_0%,#080f1e_50%,#070b14_100%)] text-slate-100">
       <aside className={`fixed inset-y-0 left-0 z-30 w-64 border-r border-slate-800 bg-[#080d18] p-5 text-slate-100 transition-transform lg:translate-x-0 ${mobileMenu ? "translate-x-0" : "-translate-x-full"}`}>
@@ -530,7 +538,11 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
             <button className="rounded-lg p-2 hover:bg-[#182235] lg:hidden" onClick={() => setMobileMenu(true)} aria-label="Abrir menu"><Menu size={21} /></button>
             <div><p className="text-sm font-semibold tracking-[0.18em] text-cyan-300">✦ SUA BARBEARIA, SOB CONTROLE</p><h1 className="text-xl font-bold tracking-tight sm:text-2xl">Visão geral</h1></div>
           </div>
-          <div className="hidden items-center gap-2 rounded-xl border border-blue-400/20 bg-[#0b1220]/70 px-3 py-2 text-sm text-slate-300 sm:flex"><CalendarDays size={16} /> {new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}</div>
+          <div className="flex items-center gap-2">
+            <div className="hidden items-center gap-2 rounded-xl border border-blue-400/20 bg-[#0b1220]/70 px-3 py-2 text-sm text-slate-300 md:flex"><CalendarDays size={16} /> {new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}</div>
+            <span className="hidden max-w-[180px] truncate text-sm text-slate-400 lg:inline" title={user.email || undefined}>{user.email}</span>
+            <button onClick={() => void logoutCloud()} className="inline-flex items-center gap-2 rounded-xl border border-blue-400/20 bg-[#0b1220]/70 px-3 py-2 text-sm text-slate-300 hover:bg-[#182235]" aria-label="Sair da conta"><LogOut size={16} /> <span className="hidden sm:inline">Sair</span></button>
+          </div>
         </header>
         <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-8">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -760,19 +772,19 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
             </div>
             {backupMessage && <p className="mt-3 text-sm text-cyan-300" role="status">{backupMessage}</p>}
             <div className="mt-5 rounded-xl border border-blue-400/20 bg-[#080f1e] p-4 sm:p-5">
-              <p className="flex items-center gap-2 font-semibold text-cyan-200"><Cloud size={18} /> Login e sincronização na nuvem</p>
-              <p className="mt-1 text-sm text-slate-400">Entre com Google ou e-mail. Sua conta Google identifica você; os dados financeiros são guardados com segurança no banco em nuvem Supabase, depois de configurar a conexão.</p>
-              {cloudSession ? <div className="mt-4"><p className="text-sm text-emerald-300">Conectado como {cloudSession.user.email || "sua conta"}</p><div className="mt-3 flex flex-wrap gap-2"><button disabled={cloudBusy} onClick={syncCloud} className="rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"><Cloud size={16} className="mr-1 inline" /> {cloudBusy ? "Sincronizando..." : "Sincronizar / recuperar"}</button><button disabled={cloudBusy} onClick={pushCloudChanges} className="rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-200 disabled:opacity-50">Enviar alterações atuais</button><button disabled={cloudBusy} onClick={logoutCloud} className="rounded-xl border border-slate-700 px-4 py-3 text-sm text-slate-300">Sair</button></div></div> : <div className="mt-4">
-                <button type="button" disabled={cloudBusy} onClick={loginGoogle} className="w-full rounded-xl border border-slate-500/40 bg-white px-4 py-3 text-sm font-bold text-slate-900 transition hover:bg-slate-100 disabled:opacity-50">Continuar com Google</button>
-                <div className="my-3 flex items-center gap-3 text-xs text-slate-500"><span className="h-px flex-1 bg-slate-700"></span>ou entre com e-mail<span className="h-px flex-1 bg-slate-700"></span></div>
-                <form onSubmit={(e) => { e.preventDefault(); void authenticateCloud("login"); }} className="grid gap-3 sm:grid-cols-2">
-                <label className="text-sm text-slate-300">E-mail<input required type="email" autoComplete="email" value={cloudEmail} onChange={(e) => setCloudEmail(e.target.value)} placeholder="voce@email.com" className="mt-1 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400" /></label>
-                <label className="text-sm text-slate-300">Senha<input required type="password" autoComplete="current-password" minLength={6} value={cloudPassword} onChange={(e) => setCloudPassword(e.target.value)} placeholder="Mínimo 6 caracteres" className="mt-1 w-full rounded-xl border border-blue-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400" /></label>
-                <div className="flex flex-wrap gap-2 sm:col-span-2"><button disabled={cloudBusy} className="rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{cloudBusy ? "Aguarde..." : "Entrar"}</button><button type="button" disabled={cloudBusy} onClick={() => void authenticateCloud("signup")} className="rounded-xl border border-blue-400/25 bg-blue-500/10 px-4 py-3 text-sm font-semibold text-blue-200 disabled:opacity-50">Criar conta</button></div>
-                </form>
-              </div>}
+              <p className="flex items-center gap-2 font-semibold text-cyan-200"><Cloud size={18} /> Sua conta e sincronização</p>
+              <p className="mt-1 text-sm text-slate-400">Seus dados financeiros ficam guardados na sua conta. Só você consegue vê-los, em qualquer aparelho em que entrar.</p>
+              <div className="mt-4">
+                <p className="text-sm text-emerald-300">Conectado como {user.email || "sua conta"}</p>
+                <p className="mt-1 text-xs text-slate-500">{cloudSyncedUser === user.id ? (lastSavedAt ? "Salvo automaticamente às " + lastSavedAt.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "Salvamento automático ativado") : "Salvamento automático pausado até a próxima sincronização"}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button disabled={cloudBusy} onClick={() => void syncCloud()} className="rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"><Cloud size={16} className="mr-1 inline" /> {cloudBusy ? "Sincronizando..." : "Sincronizar / recuperar"}</button>
+                  <button disabled={cloudBusy || cloudSyncedUser !== user.id} onClick={() => void pushCloudChanges()} className="rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-4 py-3 text-sm font-semibold text-cyan-200 disabled:opacity-50">Salvar agora</button>
+                  <button disabled={cloudBusy} onClick={() => void logoutCloud()} className="rounded-xl border border-slate-700 px-4 py-3 text-sm text-slate-300"><LogOut size={16} className="mr-1 inline" /> Sair</button>
+                </div>
+              </div>
               {cloudMessage && <p className="mt-3 text-sm text-cyan-300" role="status">{cloudMessage}</p>}
-              <p className="mt-3 text-xs text-slate-500">Após a primeira sincronização, as alterações são salvas automaticamente na nuvem. Configure o provedor Google e o banco no Supabase conforme SUPABASE_SETUP.md. Faça backup antes de recuperar dados de outra cópia.</p>
+              <p className="mt-3 text-xs text-slate-500">“Sincronizar / recuperar” carrega a versão salva na sua conta. Evite editar ao mesmo tempo em dois aparelhos. Faça backup antes de restaurar um arquivo.</p>
             </div>
           </section>
 
