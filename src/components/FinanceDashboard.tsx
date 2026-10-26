@@ -363,7 +363,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
 
   async function logoutCloud() {
     if (cloudSyncedUser === user.id) {
-      try { await saveToCloud({ movements, debts, goals, bills, budgets, accounts, openingBalances }); } catch { /* cache local mantém os dados */ }
+      try { await saveToCloud({ movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings }); } catch { /* cache local mantém os dados */ }
     }
     await queryClient.cancelQueries();
     queryClient.clear();
