@@ -516,18 +516,17 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
           <div><p className="bg-gradient-to-r from-white to-cyan-200 bg-clip-text font-bold tracking-tight text-transparent">Gestão Financeira</p><p className="text-xs text-slate-400">pra mim · barbearia</p></div>
           <button className="ml-auto lg:hidden" onClick={() => setMobileMenu(false)} aria-label="Fechar menu"><X size={20} /></button>
         </div>
-        <p className="mb-3 px-3 text-[11px] font-bold uppercase tracking-[.16em] text-slate-400">Menu principal</p>
-        <div className="flex items-center gap-3 rounded-xl border border-blue-400/30 bg-blue-500/10 shadow-[0_0_18px_rgba(37,99,235,0.08)] px-3 py-3 font-semibold text-blue-300"><LayoutDashboard size={19} /> Visão geral</div>
-        <button onClick={() => { setPeriod("all"); setMobileMenu(false); }} className="mt-2 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><ReceiptText size={19} /> Movimentações</button>
-        <button onClick={() => { setPeriod("month"); setMobileMenu(false); }} className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><ChartNoAxesCombined size={19} /> Resumo mensal</button>
-        <button onClick={() => { setMobileMenu(false); document.getElementById("planejamento")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><Target size={19} /> Metas e orçamento</button>
-        <button onClick={() => { setMobileMenu(false); document.getElementById("contas-recorrentes")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><Repeat size={19} /> Contas recorrentes</button>
-        <button onClick={() => { setMobileMenu(false); document.getElementById("minhas-dividas")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><BadgeDollarSign size={19} /> Minhas dívidas <span className="ml-auto rounded-full bg-blue-500/15 px-2 py-0.5 text-xs text-cyan-300">{unpaidDebts.length}</span></button>
-        <button onClick={() => { setMobileMenu(false); document.getElementById("backup-relatorios")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><ShieldCheck size={19} /> Backup e relatórios</button>
-        <div className="absolute bottom-5 left-5 right-5 rounded-2xl border border-slate-800 bg-[#050914] p-4 text-white">
-          <div className="mb-2 flex items-center gap-2 text-cyan-200"><Scissors size={16} /><span className="text-xs font-semibold">Seu negócio, organizado</span></div>
-          <p className="text-sm text-zinc-400">Registre cada entrada e despesa para acompanhar seu dinheiro.</p>
-        </div>
+        <p className="mb-3 px-3 text-[11px] font-bold uppercase tracking-[.16em] text-slate-400">NAVEGAÇÃO</p>
+        <nav className="space-y-1">
+          <button onClick={() => { setPeriod("all"); setMobileMenu(false); document.getElementById("visao-geral")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-200 hover:bg-slate-800"><LayoutDashboard size={19} /> Visão geral</button>
+          <button onClick={() => { setPeriod("all"); setMobileMenu(false); document.getElementById("movimentacoes")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><ReceiptText size={19} /> Movimentações</button>
+          <button onClick={() => { setMobileMenu(false); document.getElementById("resumo-mensal")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><ChartNoAxesCombined size={19} /> Resumo mensal</button>
+          <button onClick={() => { setMobileMenu(false); document.getElementById("contas-e-saldos")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><Building2 size={19} /> Contas e saldos</button>
+          <button onClick={() => { setMobileMenu(false); document.getElementById("planejamento")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><Target size={19} /> Metas e orçamento</button>
+          <button onClick={() => { setMobileMenu(false); document.getElementById("contas-recorrentes")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><Repeat size={19} /> Contas recorrentes</button>
+          <button onClick={() => { setMobileMenu(false); document.getElementById("minhas-dividas")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><BadgeDollarSign size={19} /> Minhas dívidas <span className="ml-auto rounded-full bg-blue-500/15 px-2 py-0.5 text-xs text-cyan-300">{unpaidDebts.length}</span></button>
+          <button onClick={() => { setMobileMenu(false); document.getElementById("backup-relatorios")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><ShieldCheck size={19} /> Backup e relatórios</button>
+        </nav>
       </aside>
       {mobileMenu && <button className="fixed inset-0 z-20 bg-slate-950/30 lg:hidden" onClick={() => setMobileMenu(false)} aria-label="Fechar menu" />}
       <main className="min-w-0 lg:ml-64">
@@ -669,7 +668,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
           </section>
 
           <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
-            <section className="rounded-2xl border border-blue-400/15 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.25)] transition duration-300 hover:border-blue-400/40 hover:shadow-[0_0_28px_rgba(37,99,235,0.10)] sm:p-6">
+            <section id="movimentacoes" className="scroll-mt-6 rounded-2xl border border-blue-400/15 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.25)] transition duration-300 hover:border-blue-400/40 hover:shadow-[0_0_28px_rgba(37,99,235,0.10)] sm:p-6">
               <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center"><div><h3 className="font-bold">Movimentações</h3><p className="mt-1 text-sm text-slate-400">Acompanhe seu dinheiro por período.</p></div>
                 <div className="flex items-center gap-1 rounded-xl bg-[#182235] p-1">
                   {([{key:"today",label:"Hoje"},{key:"week",label:"Semana"},{key:"month",label:"Este mês"},{key:"all",label:"Tudo"}] as const).map((item) => <button key={item.key} onClick={() => setPeriod(item.key)} className={`rounded-lg px-3 py-2 text-xs font-semibold transition ${period === item.key ? "bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-[0_0_18px_rgba(37,99,235,0.22)]" : "text-slate-400 hover:text-slate-100"}`}>{item.label}</button>)}
@@ -686,7 +685,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
             </section>
 
             <div className="space-y-6">
-              <section className="rounded-2xl border border-blue-400/15 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.25)] transition duration-300 hover:border-blue-400/40 hover:shadow-[0_0_28px_rgba(37,99,235,0.10)] sm:p-6">
+              <section id="resumo-mensal" className="scroll-mt-6 rounded-2xl border border-blue-400/15 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.25)] transition duration-300 hover:border-blue-400/40 hover:shadow-[0_0_28px_rgba(37,99,235,0.10)] sm:p-6">
                 <div className="flex items-center justify-between"><div><h3 className="font-bold">Resumo do mês</h3><p className="mt-1 text-sm text-slate-400">Visão geral do mês atual</p></div><div className="rounded-xl bg-blue-950/50 p-2.5 text-blue-400"><ChartNoAxesCombined size={20} /></div></div>
                 <div className="mt-5 space-y-4">
                   <ProgressRow label="Entradas" value={monthIncome} max={Math.max(monthIncome, monthExpenses, 1)} color="bg-emerald-500" />
