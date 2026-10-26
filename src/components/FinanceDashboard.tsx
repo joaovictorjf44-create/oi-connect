@@ -516,16 +516,19 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
           <div><p className="bg-gradient-to-r from-white to-cyan-200 bg-clip-text font-bold tracking-tight text-transparent">Gestão Financeira</p><p className="text-xs text-slate-400">pra mim · barbearia</p></div>
           <button className="ml-auto lg:hidden" onClick={() => setMobileMenu(false)} aria-label="Fechar menu"><X size={20} /></button>
         </div>
-        <p className="mb-3 px-3 text-[11px] font-bold uppercase tracking-[.16em] text-slate-400">NAVEGAÇÃO</p>
+        <p className="mb-3 px-3 text-[11px] font-bold uppercase tracking-[.16em] text-slate-400">ÁREAS DO APLICATIVO</p>
         <nav className="space-y-1">
+          <p className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-[.15em] text-cyan-400">Negócio</p>
+          <button onClick={() => { setMobileMenu(false); document.getElementById("area-barbearia")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-200 hover:bg-slate-800"><Scissors size={19} /> Área da Barbearia</button>
+          <p className="px-3 pb-1 pt-3 text-[10px] font-bold uppercase tracking-[.15em] text-cyan-400">Finanças pessoais</p>
           <button onClick={() => { setPeriod("all"); setMobileMenu(false); document.getElementById("visao-geral")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-200 hover:bg-slate-800"><LayoutDashboard size={19} /> Visão geral</button>
           <button onClick={() => { setPeriod("all"); setMobileMenu(false); document.getElementById("movimentacoes")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><ReceiptText size={19} /> Movimentações</button>
-          <button onClick={() => { setMobileMenu(false); document.getElementById("resumo-mensal")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><ChartNoAxesCombined size={19} /> Resumo mensal</button>
+          <button onClick={() => { setMobileMenu(false); document.getElementById("resumo-mensal")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><ChartNoAxesCombined size={19} /> Relatórios</button>
           <button onClick={() => { setMobileMenu(false); document.getElementById("contas-e-saldos")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><Building2 size={19} /> Contas e saldos</button>
           <button onClick={() => { setMobileMenu(false); document.getElementById("planejamento")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><Target size={19} /> Metas e orçamento</button>
           <button onClick={() => { setMobileMenu(false); document.getElementById("contas-recorrentes")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><Repeat size={19} /> Contas recorrentes</button>
           <button onClick={() => { setMobileMenu(false); document.getElementById("minhas-dividas")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><BadgeDollarSign size={19} /> Minhas dívidas <span className="ml-auto rounded-full bg-blue-500/15 px-2 py-0.5 text-xs text-cyan-300">{unpaidDebts.length}</span></button>
-          <button onClick={() => { setMobileMenu(false); document.getElementById("backup-relatorios")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><ShieldCheck size={19} /> Backup e relatórios</button>
+          <button onClick={() => { setMobileMenu(false); document.getElementById("backup-relatorios")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><ShieldCheck size={19} /> Configurações e backup</button>
         </nav>
       </aside>
       {mobileMenu && <button className="fixed inset-0 z-20 bg-slate-950/30 lg:hidden" onClick={() => setMobileMenu(false)} aria-label="Fechar menu" />}
@@ -542,6 +545,22 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
           </div>
         </header>
         <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-8">
+          <section id="area-barbearia" className="scroll-mt-6 rounded-2xl border border-cyan-400/25 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 sm:p-6">
+            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+              <div>
+                <div className="flex items-center gap-2 text-cyan-300"><Scissors size={21} /><span className="text-xs font-bold uppercase tracking-[0.18em]">Área do negócio</span></div>
+                <h2 className="mt-2 text-2xl font-bold">Minha Barbearia</h2>
+                <p className="mt-1 text-sm text-slate-400">Acompanhe as entradas e despesas do negócio separadamente das suas finanças pessoais.</p>
+              </div>
+              <button onClick={() => { setModal("entrada"); setDescription(""); setAmount(""); setCategory("Corte"); setDate(todayISO()); setNote(""); }} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-bold text-white"><Plus size={17} /> Registrar receita da barbearia</button>
+            </div>
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-blue-400/15 bg-[#080f1e] p-4"><p className="text-sm text-slate-400">Receitas da barbearia</p><p className="mt-2 text-2xl font-bold text-emerald-300">{money(movements.filter((m) => m.type === "entrada" && ["Corte","Barba","Combo corte e barba","Sobrancelha","Gorjeta","Outro serviço"].includes(m.category)).reduce((sum,m) => sum + m.amount, 0))}</p></div>
+              <div className="rounded-xl border border-blue-400/15 bg-[#080f1e] p-4"><p className="text-sm text-slate-400">Serviços registrados</p><p className="mt-2 text-2xl font-bold">{movements.filter((m) => m.type === "entrada" && ["Corte","Barba","Combo corte e barba","Sobrancelha","Outro serviço"].includes(m.category)).length}</p></div>
+              <div className="rounded-xl border border-blue-400/15 bg-[#080f1e] p-4"><p className="text-sm text-slate-400">Despesas do negócio</p><p className="mt-2 text-2xl font-bold text-rose-300">{money(movements.filter((m) => m.type === "saida" && ["Materiais","Aluguel","Água e energia","Internet","Manutenção"].includes(m.category)).reduce((sum,m) => sum + m.amount, 0))}</p></div>
+            </div>
+            <p className="mt-3 text-xs text-slate-500">Os totais acima usam as categorias de barbearia registradas nas movimentações. Para ver ou editar todos os lançamentos, abra Movimentações.</p>
+          </section>
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div><p className="text-sm font-semibold tracking-[0.18em] text-cyan-300">SEU FINANCEIRO EM UM SÓ LUGAR</p><h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Controle seu dinheiro.</h2><p className="mt-1 text-slate-400">Veja quanto entrou, quanto saiu e quanto sobrou.</p></div>
             <div className="flex flex-wrap gap-2">
