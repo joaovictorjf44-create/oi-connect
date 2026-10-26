@@ -71,7 +71,8 @@ const DEFAULT_ACCOUNTS = ["Conta principal", "Carteira", "Banco", "Poupança"];
 const LEGACY_CLAIM_KEY = "gestao-financeira-pra-mim-legacy-claimed-by";
 const userCacheKey = (userId: string) => "gestao-financeira-pra-mim-cache-" + userId;
 type WeeklySavings = { weekStart: string; saved: number };
-type FinanceData = { movements?: Movement[] | undefined; debts?: Debt[] | undefined; goals?: SavingsGoal[] | undefined; bills?: RecurringBill[] | undefined; budgets?: Budget[] | undefined; accounts?: string[] | undefined; openingBalances?: Record<string, number> | undefined; weeklySavings?: WeeklySavings | undefined };
+type MonthlySavings = { month: string; saved: number; workDays: number };
+type FinanceData = { movements?: Movement[] | undefined; debts?: Debt[] | undefined; goals?: SavingsGoal[] | undefined; bills?: RecurringBill[] | undefined; budgets?: Budget[] | undefined; accounts?: string[] | undefined; openingBalances?: Record<string, number> | undefined; weeklySavings?: WeeklySavings | undefined; monthlySavings?: MonthlySavings | undefined };
 export type DashboardUser = { id: string; email?: string | null };
 
 function readLegacyLocalData(): FinanceData {
@@ -131,6 +132,8 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   const [bills, setBills] = useState<RecurringBill[]>([]);
   const [weeklySavings, setWeeklySavings] = useState<WeeklySavings>({ weekStart: weekStartISO(), saved: 0 });
   const [dailyDeposit, setDailyDeposit] = useState("");
+  const [monthlySavings, setMonthlySavings] = useState<MonthlySavings>({ month: todayISO().slice(0, 7), saved: 0, workDays: 22 });
+  const [monthlyDeposit, setMonthlyDeposit] = useState("");
   const [billName, setBillName] = useState("");
   const [billAmount, setBillAmount] = useState("");
   const [billCategory, setBillCategory] = useState("Internet");
@@ -219,9 +222,9 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   useEffect(() => {
     if (!loaded || cloudSyncedUser !== user.id) return;
     try {
-      localStorage.setItem(userCacheKey(user.id), JSON.stringify({ movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings }));
+      localStorage.setItem(userCacheKey(user.id), JSON.stringify({ movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings }));
     } catch { /* armazenamento cheio ou bloqueado */ }
-  }, [movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings, loaded, cloudSyncedUser, user.id]);
+  }, [movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings, loaded, cloudSyncedUser, user.id]);
 
   const filtered = useMemo(() => movements.filter((item) => {
     if (period === "today") return item.date === todayISO();
@@ -311,6 +314,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
     setAccounts(Array.isArray(data.accounts) && data.accounts.length ? data.accounts : DEFAULT_ACCOUNTS);
     setOpeningBalances(data.openingBalances && typeof data.openingBalances === "object" ? data.openingBalances : {});
       setWeeklySavings(data.weeklySavings && data.weeklySavings.weekStart === weekStartISO() ? data.weeklySavings : { weekStart: weekStartISO(), saved: 0 });
+    setMonthlySavings(data.monthlySavings && data.monthlySavings.month === todayISO().slice(0, 7) ? data.monthlySavings : { month: todayISO().slice(0, 7), saved: 0, workDays: data.monthlySavings?.workDays || 22 });
     setWeeklySavings(data.weeklySavings && data.weeklySavings.weekStart === weekStartISO() ? data.weeklySavings : { weekStart: weekStartISO(), saved: 0 });
   }
 
@@ -331,7 +335,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
         applyData(row.data as unknown as FinanceData);
         setCloudMessage("Dados recuperados da sua conta.");
       } else {
-        await saveToCloud({ movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings });
+        await saveToCloud({ movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings });
         setCloudMessage("Seus dados atuais foram salvos na sua conta.");
       }
       setCloudSyncedUser(user.id);
@@ -343,7 +347,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   async function pushCloudChanges(silent = false) {
     if (!silent) { setCloudBusy(true); setCloudMessage(""); }
     try {
-      await saveToCloud({ movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings });
+      await saveToCloud({ movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings });
       setLastSavedAt(new Date());
       if (!silent) setCloudMessage("Tudo salvo na sua conta.");
     } catch (error) {
@@ -355,7 +359,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
     if (!loaded || cloudSyncedUser !== user.id) return;
     const timer = window.setTimeout(() => { void pushCloudChanges(true); }, 1200);
     return () => window.clearTimeout(timer);
-  }, [loaded, cloudSyncedUser, user.id, movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings]);
+  }, [loaded, cloudSyncedUser, user.id, movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings]);
 
   async function logoutCloud() {
     if (cloudSyncedUser === user.id) {
@@ -386,7 +390,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   async function importBackup(file?: File) {
     if (!file) return;
     try {
-      const data = JSON.parse(await file.text()) as Partial<{ movements: Movement[]; debts: Debt[]; goals: SavingsGoal[]; bills: RecurringBill[]; budgets: Budget[]; accounts: string[]; openingBalances: Record<string, number>; weeklySavings: WeeklySavings }>;
+      const data = JSON.parse(await file.text()) as Partial<{ movements: Movement[]; debts: Debt[]; goals: SavingsGoal[]; bills: RecurringBill[]; budgets: Budget[]; accounts: string[]; openingBalances: Record<string, number>; weeklySavings: WeeklySavings; monthlySavings: MonthlySavings }>;
       if (!Array.isArray(data.movements) || !Array.isArray(data.debts)) throw new Error("Arquivo inválido");
       setMovements(data.movements);
       setDebts(data.debts);
@@ -429,6 +433,25 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
     if (!Number.isFinite(value) || value <= 0) return;
     setWeeklySavings({ weekStart: weekStartISO(), saved: weeklySavingsCurrent + value });
     setDailyDeposit("");
+  }
+
+  const monthlyBillsTotal = bills.filter((bill) => (bill.frequency || "monthly") === "monthly").reduce((sum, bill) => sum + bill.amount, 0);
+  const monthlySavingsCurrent = monthlySavings.month === todayISO().slice(0, 7) ? monthlySavings.saved : 0;
+  const monthlyWorkDays = monthlySavings.workDays || 22;
+  const monthlyDailyTarget = monthlyBillsTotal / Math.max(1, monthlyWorkDays);
+  const monthlySavingsRemaining = Math.max(0, monthlyBillsTotal - monthlySavingsCurrent);
+
+  function updateWorkDays(value: number) {
+    if (!Number.isInteger(value) || value < 1 || value > 31) return;
+    setMonthlySavings((current) => ({ month: todayISO().slice(0, 7), saved: current.month === todayISO().slice(0, 7) ? current.saved : 0, workDays: value }));
+  }
+
+  function addMonthlySavings(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const value = Number(monthlyDeposit.replace(",", "."));
+    if (!Number.isFinite(value) || value <= 0) return;
+    setMonthlySavings((current) => ({ month: todayISO().slice(0, 7), saved: monthlySavingsCurrent + value, workDays: current.workDays || 22 }));
+    setMonthlyDeposit("");
   }
 
   function saveBill(event: React.FormEvent<HTMLFormElement>) {
@@ -772,6 +795,33 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
               </form>
               <div className="mt-5 space-y-3">{budgets.length === 0 ? <p className="rounded-xl border border-dashed border-blue-400/20 p-5 text-center text-sm text-slate-400">Cadastre um limite para acompanhar seus gastos.</p> : budgets.map((budget) => { const spent = currentMonthExpenses.filter((m) => m.category === budget.category).reduce((sum, m) => sum + m.amount, 0); const percent = spent / budget.limit * 100; return <div key={budget.id} className="rounded-xl border border-blue-400/15 bg-[#080f1e] p-4"><div className="flex items-center justify-between gap-3"><p className="font-semibold">{budget.category}</p><button aria-label="Excluir limite" onClick={() => setBudgets((current) => current.filter((b) => b.id !== budget.id))} className="text-slate-500 hover:text-rose-300"><Trash2 size={15} /></button></div><div className="mt-2 flex justify-between gap-2 text-xs"><span className={percent >= 100 ? "text-rose-300" : "text-slate-400"}>{money(spent)} gastos</span><span className="text-slate-300">Limite {money(budget.limit)}</span></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-[#182235]"><div className={"h-full rounded-full " + (percent >= 100 ? "bg-rose-500" : percent >= 80 ? "bg-amber-400" : "bg-cyan-400")} style={{ width: Math.min(100, percent) + "%" }} /></div>{percent >= 80 && <p className={"mt-2 text-xs " + (percent >= 100 ? "text-rose-300" : "text-amber-300")}>{percent >= 100 ? "Limite ultrapassado!" : "Atenção: você está perto do limite."}</p>}</div> })}</div>
             </div>
+          </section>
+
+          <section id="juntar-contas-mensais" className="scroll-mt-6 rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-[#101d30] to-[#0b1220] p-5 sm:p-6">
+            <div className="flex items-center gap-2 text-cyan-300"><CalendarDays size={21} /><span className="text-xs font-bold uppercase tracking-[0.18em]">Planejamento mensal</span></div>
+            <h3 className="mt-2 text-xl font-bold">Quanto juntar por mês e por dia trabalhado</h3>
+            <p className="mt-1 text-sm text-slate-400">Somamos as contas cadastradas como mensais e dividimos pelos dias que você trabalha no mês. Você pode ajustar a quantidade de dias conforme sua rotina.</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-xl border border-cyan-400/15 bg-[#080f1e] p-4"><p className="text-xs text-slate-400">Total das contas mensais</p><p className="mt-2 text-xl font-bold text-white">{money(monthlyBillsTotal)}</p></div>
+              <div className="rounded-xl border border-cyan-400/15 bg-[#080f1e] p-4"><p className="text-xs text-slate-400">Separar por dia trabalhado</p><p className="mt-2 text-xl font-bold text-cyan-300">{money(monthlyDailyTarget)}</p></div>
+              <div className="rounded-xl border border-cyan-400/15 bg-[#080f1e] p-4"><p className="text-xs text-slate-400">Já juntado neste mês</p><p className="mt-2 text-xl font-bold text-emerald-300">{money(monthlySavingsCurrent)}</p></div>
+              <div className="rounded-xl border border-cyan-400/15 bg-[#080f1e] p-4"><p className="text-xs text-slate-400">Ainda falta juntar</p><p className="mt-2 text-xl font-bold text-amber-300">{money(monthlySavingsRemaining)}</p></div>
+            </div>
+            <form onSubmit={(e) => { e.preventDefault(); updateWorkDays(Number((e.currentTarget.elements.namedItem("monthlyWorkDays") as HTMLInputElement).value)); }} className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+              <label className="flex-1 text-sm text-slate-300">Quantos dias você trabalha por mês?
+                <input name="monthlyWorkDays" required type="number" min="1" max="31" step="1" defaultValue={monthlyWorkDays} key={monthlyWorkDays} className="mt-1 w-full rounded-xl border border-cyan-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400" />
+              </label>
+              <button type="submit" className="rounded-xl border border-cyan-400/25 bg-cyan-400/10 px-5 py-3 text-sm font-bold text-cyan-200">Atualizar dias trabalhados</button>
+            </form>
+            <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-[#182235]"><div className="h-full rounded-full bg-cyan-400 transition-all" style={{ width: `${monthlyBillsTotal > 0 ? Math.min(100, (monthlySavingsCurrent / monthlyBillsTotal) * 100) : 0}%` }} /></div>
+            <form onSubmit={addMonthlySavings} className="mt-4 flex flex-col gap-3 sm:flex-row">
+              <label className="flex-1 text-sm text-slate-300">Quanto você separou hoje para as contas mensais? (R$)
+                <input required min="0.01" step="0.01" type="number" value={monthlyDeposit} onChange={(e) => setMonthlyDeposit(e.target.value)} placeholder="Ex.: 35,00" className="mt-1 w-full rounded-xl border border-cyan-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400" />
+              </label>
+              <button type="submit" className="self-end rounded-xl bg-cyan-600 px-5 py-3 text-sm font-bold text-white hover:bg-cyan-500"><Plus size={16} className="mr-1 inline" /> Somar valor guardado</button>
+            </form>
+            {monthlyBillsTotal === 0 && <p className="mt-3 text-xs text-amber-200">Cadastre suas contas na seção “Contas recorrentes” e escolha a frequência “Mensal” para calcular sua meta.</p>}
+            {monthlySavingsCurrent >= monthlyBillsTotal && monthlyBillsTotal > 0 && <p className="mt-3 text-sm font-semibold text-emerald-300">Meta mensal alcançada! Você já juntou o suficiente para as contas cadastradas.</p>}
           </section>
 
           <section id="juntar-contas-semanais" className="scroll-mt-6 rounded-2xl border border-emerald-400/20 bg-gradient-to-br from-[#10251f] to-[#0b1220] p-5 sm:p-6">
