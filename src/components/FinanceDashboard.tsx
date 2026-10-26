@@ -350,7 +350,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   async function pushCloudChanges(silent = false) {
     if (!silent) { setCloudBusy(true); setCloudMessage(""); }
     try {
-      await saveToCloud({ movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings });
+      await saveToCloud({ movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings, debtSavings });
       setLastSavedAt(new Date());
       if (!silent) setCloudMessage("Tudo salvo na sua conta.");
     } catch (error) {
@@ -366,7 +366,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
 
   async function logoutCloud() {
     if (cloudSyncedUser === user.id) {
-      try { await saveToCloud({ movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings }); } catch { /* cache local mantém os dados */ }
+      try { await saveToCloud({ movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings, debtSavings }); } catch { /* cache local mantém os dados */ }
     }
     await queryClient.cancelQueries();
     queryClient.clear();
