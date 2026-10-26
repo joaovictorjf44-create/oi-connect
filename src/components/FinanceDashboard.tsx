@@ -1,14 +1,15 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowDownLeft, ArrowUpRight, Wallet, Plus, Scissors, Trash2,
   CalendarDays, TrendingUp, TrendingDown, CircleDollarSign, X, Menu,
   LayoutDashboard, ReceiptText, ChartNoAxesCombined, CreditCard, Banknote,
   Smartphone, ChevronDown, CheckCircle2, BadgeDollarSign, CalendarClock, CircleAlert, Check, HandCoins,
-  Target, PiggyBank, Repeat, Download, Upload, FileSpreadsheet, Building2, Cloud, ShieldCheck, PlusCircle
+  Target, PiggyBank, Repeat, Download, Upload, FileSpreadsheet, Building2, Cloud, ShieldCheck, PlusCircle, LogOut
 } from "lucide-react";
-
-export const Route = createFileRoute("/")({ component: FinanceDashboard });
+import type { Json } from "@/integrations/supabase/types";
+import { supabase } from "@/integrations/supabase/client";
 
 type Debt = {
   id: string;
