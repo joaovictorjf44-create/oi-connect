@@ -649,7 +649,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
           </div>
         </header>
         <div className="mx-auto max-w-7xl space-y-6 p-4 sm:p-8">
-          <section id="area-barbearia" className="scroll-mt-6 rounded-2xl border border-cyan-400/25 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 sm:p-6">
+          <section id="area-barbearia" className={activePage === "barbearia" ? "scroll-mt-6 rounded-2xl border border-cyan-400/25 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 sm:p-6" : "hidden"}>
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
               <div>
                 <div className="flex items-center gap-2 text-cyan-300"><Scissors size={21} /><span className="text-xs font-bold uppercase tracking-[0.18em]">Área do negócio</span></div>
