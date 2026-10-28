@@ -668,6 +668,8 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
             </div>
             <p className="mt-3 text-xs text-slate-500">Os totais acima usam as categorias de barbearia registradas nas movimentações. Para ver ou editar todos os lançamentos, abra Movimentações.</p>
           </section>
+          <div className={activePage === "inicio" ? "space-y-6" : "hidden"}>
+
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div><p className="text-sm font-semibold tracking-[0.18em] text-cyan-300">SEU FINANCEIRO EM UM SÓ LUGAR</p><h2 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">Controle seu dinheiro.</h2><p className="mt-1 text-slate-400">Veja quanto entrou, quanto saiu e quanto sobrou.</p></div>
             <div className="flex flex-wrap gap-2">
@@ -793,6 +795,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
             </div>
           </section>
 
+          </div>
           <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
             <section id="movimentacoes" className={["movimentacoes","entradas","saidas"].includes(activePage) ? "scroll-mt-6 rounded-2xl border border-blue-400/15 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.25)] transition duration-300 hover:border-blue-400/40 hover:shadow-[0_0_28px_rgba(37,99,235,0.10)] sm:p-6" : "hidden"}>
               <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center"><div><h3 className="font-bold">Movimentações</h3><p className="mt-1 text-sm text-slate-400">Acompanhe seu dinheiro por período.</p></div>
