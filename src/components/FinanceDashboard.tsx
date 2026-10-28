@@ -983,6 +983,27 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
               </div>
             </div>
 
+            <div className="mt-5 rounded-2xl border border-blue-400/15 bg-[#080f1e] p-4 sm:p-5">
+              <div className="flex items-center gap-2 text-cyan-300"><ChartNoAxesCombined size={20} /><span className="text-xs font-bold uppercase tracking-[0.18em]">Visão das dívidas</span></div>
+              <h4 className="mt-2 text-lg font-bold text-white">Dívidas pagas x em aberto</h4>
+              <p className="mt-1 text-sm text-slate-400">Veja como o total das suas dívidas está dividido.</p>
+              {debtTotal + paidDebtTotal === 0 ? (
+                <p className="mt-4 rounded-xl border border-dashed border-blue-400/20 p-5 text-center text-sm text-slate-400">Cadastre suas dívidas para visualizar o gráfico.</p>
+              ) : (
+                <div className="mt-5 flex flex-col items-center gap-5 sm:flex-row sm:justify-center sm:gap-10">
+                  <div role="img" aria-label={"Gráfico de dívidas: " + money(debtTotal) + " em aberto e " + money(paidDebtTotal) + " já quitadas"} className="relative h-44 w-44 shrink-0 rounded-full" style={{ background: "conic-gradient(#fb7185 0% " + (debtTotal / (debtTotal + paidDebtTotal) * 100) + "%, #34d399 " + (debtTotal / (debtTotal + paidDebtTotal) * 100) + "% 100%)" }}>
+                    <div className="absolute inset-5 flex flex-col items-center justify-center rounded-full bg-[#080f1e] text-center">
+                      <span className="text-xs text-slate-400">Total</span>
+                      <span className="mt-1 text-base font-bold text-white">{money(debtTotal + paidDebtTotal)}</span>
+                    </div>
+                  </div>
+                  <div className="w-full max-w-xs space-y-4">
+                    <div className="flex items-center justify-between gap-3"><span className="flex items-center gap-2 text-sm text-slate-300"><span className="h-3 w-3 rounded-sm bg-rose-400" />Em aberto</span><span className="text-right text-sm font-bold text-rose-300">{money(debtTotal)} <span className="text-xs font-normal text-slate-500">({Math.round(debtTotal / (debtTotal + paidDebtTotal) * 100)}%)</span></span></div>
+                    <div className="flex items-center justify-between gap-3"><span className="flex items-center gap-2 text-sm text-slate-300"><span className="h-3 w-3 rounded-sm bg-emerald-400" />Já quitadas</span><span className="text-right text-sm font-bold text-emerald-300">{money(paidDebtTotal)} <span className="text-xs font-normal text-slate-500">({Math.round(paidDebtTotal / (debtTotal + paidDebtTotal) * 100)}%)</span></span></div>
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="mt-5 rounded-2xl border border-amber-400/20 bg-gradient-to-br from-[#241c10] to-[#0b1220] p-4 sm:p-5">
               <div className="flex items-center gap-2 text-amber-300"><PiggyBank size={21} /><span className="text-xs font-bold uppercase tracking-[0.18em]">Plano para quitar as dívidas</span></div>
               <h4 className="mt-2 text-lg font-bold text-white">Quanto separar por dia para pagar suas dívidas</h4>
