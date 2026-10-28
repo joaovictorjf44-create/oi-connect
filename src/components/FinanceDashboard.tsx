@@ -126,6 +126,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   const [date, setDate] = useState(todayISO());
   const [note, setNote] = useState("");
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [activePage, setActivePage] = useState("inicio");
   const [debts, setDebts] = useState<Debt[]>([]);
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
   const [goalName, setGoalName] = useState("");
