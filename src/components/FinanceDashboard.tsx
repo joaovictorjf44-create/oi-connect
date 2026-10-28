@@ -117,6 +117,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   const [movements, setMovements] = useState<Movement[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [period, setPeriod] = useState<"today" | "week" | "month" | "all">("today");
+  const [movementTypeFilter, setMovementTypeFilter] = useState<"all" | "entrada" | "saida">("all");
   const [modal, setModal] = useState<"entrada" | "saida" | null>(null);
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("30");
@@ -230,11 +231,13 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   }, [movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings, debtSavings, loaded, cloudSyncedUser, user.id]);
 
   const filtered = useMemo(() => movements.filter((item) => {
-    if (period === "today") return item.date === todayISO();
-    if (period === "week") return item.date >= weekStartISO() && item.date <= weekEndISO();
-    if (period === "month") return item.date.slice(0, 7) === todayISO().slice(0, 7);
-    return true;
-  }), [movements, period]);
+    const matchesPeriod = period === "today" ? item.date === todayISO()
+      : period === "week" ? item.date >= weekStartISO() && item.date <= weekEndISO()
+      : period === "month" ? item.date.slice(0, 7) === todayISO().slice(0, 7)
+      : true;
+    const matchesType = movementTypeFilter === "all" || item.type === movementTypeFilter;
+    return matchesPeriod && matchesType;
+  }), [movements, period, movementTypeFilter]);
 
   const income = filtered.filter((m) => m.type === "entrada").reduce((sum, m) => sum + m.amount, 0);
   const expenses = filtered.filter((m) => m.type === "saida").reduce((sum, m) => sum + m.amount, 0);
@@ -793,7 +796,10 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
                   {([{key:"today",label:"Hoje"},{key:"week",label:"Semana"},{key:"month",label:"Este mês"},{key:"all",label:"Tudo"}] as const).map((item) => <button key={item.key} onClick={() => setPeriod(item.key)} className={`rounded-lg px-3 py-2 text-xs font-semibold transition ${period === item.key ? "bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-[0_0_18px_rgba(37,99,235,0.22)]" : "text-slate-400 hover:text-slate-100"}`}>{item.label}</button>)}
                 </div>
               </div>
-              <div className="mt-5 space-y-1">
+              <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Filtrar por tipo de movimentação">
+                {([{ key: "all", label: "Todas" }, { key: "entrada", label: "Entradas" }, { key: "saida", label: "Saídas" }] as const).map((item) => <button key={item.key} type="button" onClick={() => setMovementTypeFilter(item.key)} className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${movementTypeFilter === item.key ? item.key === "entrada" ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-300" : item.key === "saida" ? "border-rose-400/40 bg-rose-500/15 text-rose-300" : "border-cyan-400/40 bg-cyan-500/15 text-cyan-200" : "border-slate-700 text-slate-400 hover:border-slate-500 hover:text-slate-200"}`}>{item.label}</button>)}
+              </div>
+              <div className="mt-3 space-y-1">
                 {filtered.length === 0 ? <div className="flex flex-col items-center py-12 text-center"><div className="mb-3 rounded-2xl bg-blue-950/50 p-4 text-blue-400"><ReceiptText size={25} /></div><p className="font-semibold">Nenhuma movimentação por aqui</p><p className="mt-1 max-w-xs text-sm text-slate-400">Registre sua primeira entrada ou saída para começar a acompanhar seu financeiro.</p><button onClick={() => openModal("entrada")} className="mt-4 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-500"><Plus size={16} className="mr-1 inline" /> Registrar primeira entrada</button></div> :
                   filtered.slice(0, 12).map((m) => <div key={m.id} className="group flex items-center gap-3 border-b border-slate-800 py-3 last:border-0">
                     <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${m.type === "entrada" ? "bg-emerald-950/50 text-emerald-400" : "bg-rose-950/50 text-rose-400"}`}>{m.type === "entrada" ? <ArrowDownLeft size={19} /> : <ArrowUpRight size={19} />}</div>
