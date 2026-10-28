@@ -791,7 +791,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
           </section>
 
           <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
-            <section id="movimentacoes" className="scroll-mt-6 rounded-2xl border border-blue-400/15 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.25)] transition duration-300 hover:border-blue-400/40 hover:shadow-[0_0_28px_rgba(37,99,235,0.10)] sm:p-6">
+            <section id="movimentacoes" className={["movimentacoes","entradas","saidas"].includes(activePage) ? "scroll-mt-6 rounded-2xl border border-blue-400/15 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.25)] transition duration-300 hover:border-blue-400/40 hover:shadow-[0_0_28px_rgba(37,99,235,0.10)] sm:p-6" : "hidden"}>
               <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center"><div><h3 className="font-bold">Movimentações</h3><p className="mt-1 text-sm text-slate-400">Acompanhe seu dinheiro por período.</p></div>
                 <div className="flex items-center gap-1 rounded-xl bg-[#182235] p-1">
                   {([{key:"today",label:"Hoje"},{key:"week",label:"Semana"},{key:"month",label:"Este mês"},{key:"all",label:"Tudo"}] as const).map((item) => <button key={item.key} onClick={() => setPeriod(item.key)} className={`rounded-lg px-3 py-2 text-xs font-semibold transition ${period === item.key ? "bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-[0_0_18px_rgba(37,99,235,0.22)]" : "text-slate-400 hover:text-slate-100"}`}>{item.label}</button>)}
@@ -811,7 +811,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
             </section>
 
             <div className="space-y-6">
-              <section id="resumo-mensal" className="scroll-mt-6 rounded-2xl border border-blue-400/15 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.25)] transition duration-300 hover:border-blue-400/40 hover:shadow-[0_0_28px_rgba(37,99,235,0.10)] sm:p-6">
+              <section id="resumo-mensal" className={activePage === "relatorios" ? "scroll-mt-6 rounded-2xl border border-blue-400/15 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 shadow-[0_8px_30px_rgba(0,0,0,0.25)] transition duration-300 hover:border-blue-400/40 hover:shadow-[0_0_28px_rgba(37,99,235,0.10)] sm:p-6" : "hidden"}>
                 <div className="flex items-center justify-between"><div><h3 className="font-bold">Resumo do mês</h3><p className="mt-1 text-sm text-slate-400">Visão geral do mês atual</p></div><div className="rounded-xl bg-blue-950/50 p-2.5 text-blue-400"><ChartNoAxesCombined size={20} /></div></div>
                 <div className="mt-5 space-y-4">
                   <ProgressRow label="Entradas" value={monthIncome} max={Math.max(monthIncome, monthExpenses, 1)} color="bg-emerald-500" />
@@ -822,7 +822,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
             </div>
           </div>
 
-          <section id="contas-e-saldos" className="scroll-mt-6 rounded-2xl border border-blue-400/20 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 sm:p-6">
+          <section id="contas-e-saldos" className={activePage === "contas" ? "scroll-mt-6 rounded-2xl border border-blue-400/20 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 sm:p-6" : "hidden"}>
             <div className="flex items-center gap-2 text-cyan-300"><Building2 size={21} /><span className="text-xs font-bold uppercase tracking-[0.18em]">Contas e saldos</span></div>
             <h3 className="mt-2 text-xl font-bold">Onde está seu dinheiro?</h3>
             <p className="mt-1 text-sm text-slate-400">Cada movimentação pode ser associada a uma conta ou carteira.</p>
@@ -838,7 +838,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
             </form>
           </section>
 
-          <section id="planejamento" className="scroll-mt-6 grid gap-6 xl:grid-cols-2">
+          <section id="planejamento" className={activePage === "metas" ? "scroll-mt-6 grid gap-6 xl:grid-cols-2" : "hidden"}>
             <div className="rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 sm:p-6">
               <div className="flex items-center gap-2 text-cyan-300"><Target size={21} /><span className="text-xs font-bold uppercase tracking-[0.18em]">Objetivos financeiros</span></div>
               <h3 className="mt-2 text-xl font-bold">Metas para juntar dinheiro</h3>
@@ -862,7 +862,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
             </div>
           </section>
 
-          <section id="juntar-contas-mensais" className="scroll-mt-6 rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-[#101d30] to-[#0b1220] p-5 sm:p-6">
+          <section id="juntar-contas-mensais" className={activePage === "metas" ? "scroll-mt-6 rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-[#101d30] to-[#0b1220] p-5 sm:p-6" : "hidden"}>
             <div className="flex items-center gap-2 text-cyan-300"><CalendarDays size={21} /><span className="text-xs font-bold uppercase tracking-[0.18em]">Planejamento mensal</span></div>
             <h3 className="mt-2 text-xl font-bold">Quanto juntar por mês e por dia trabalhado</h3>
             <p className="mt-1 text-sm text-slate-400">Somamos as contas cadastradas como mensais e dividimos pelos dias que você trabalha no mês. Você pode ajustar a quantidade de dias conforme sua rotina.</p>
@@ -894,7 +894,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
             {monthlySavingsCurrent >= monthlyBillsTotal && monthlyBillsTotal > 0 && <p className="mt-3 text-sm font-semibold text-emerald-300">Meta mensal alcançada! Você já juntou o suficiente para as contas cadastradas.</p>}
           </section>
 
-          <section id="juntar-contas-semanais" className="scroll-mt-6 rounded-2xl border border-emerald-400/20 bg-gradient-to-br from-[#10251f] to-[#0b1220] p-5 sm:p-6">
+          <section id="juntar-contas-semanais" className={activePage === "metas" ? "scroll-mt-6 rounded-2xl border border-emerald-400/20 bg-gradient-to-br from-[#10251f] to-[#0b1220] p-5 sm:p-6" : "hidden"}>
             <div className="flex items-center gap-2 text-emerald-300"><PiggyBank size={21} /><span className="text-xs font-bold uppercase tracking-[0.18em]">Planejamento semanal</span></div>
             <h3 className="mt-2 text-xl font-bold">Juntar dinheiro para as contas da semana</h3>
             <p className="mt-1 text-sm text-slate-400">O sistema soma suas contas cadastradas como semanais e calcula quanto separar por dia para cobrir esse total em 7 dias.</p>
@@ -914,7 +914,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
             {weeklySavingsCurrent >= weeklyBillsTotal && weeklyBillsTotal > 0 && <p className="mt-3 text-sm font-semibold text-emerald-300">Meta semanal alcançada! Você já juntou o suficiente para as contas cadastradas.</p>}
           </section>
 
-          <section id="contas-recorrentes" className="scroll-mt-6 rounded-2xl border border-blue-400/20 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 sm:p-6">
+          <section id="contas-recorrentes" className={activePage === "recorrentes" ? "scroll-mt-6 rounded-2xl border border-blue-400/20 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 sm:p-6" : "hidden"}>
             <div className="flex items-center gap-2 text-cyan-300"><Repeat size={21} /><span className="text-xs font-bold uppercase tracking-[0.18em]">Contas recorrentes</span></div>
             <h3 className="mt-2 text-xl font-bold">Não esqueça seus vencimentos</h3>
             <p className="mt-1 text-sm text-slate-400">Cadastre contas semanais ou mensais. Ao registrar o pagamento, a despesa é lançada automaticamente.</p>
@@ -929,7 +929,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
             <div className="mt-5 space-y-3">{bills.length === 0 ? <p className="rounded-xl border border-dashed border-blue-400/20 p-5 text-center text-sm text-slate-400">Nenhuma conta recorrente cadastrada.</p> : bills.map((bill) => { const frequency = bill.frequency || "monthly"; const weekday = bill.dueWeekday ?? 1; const paidThisPeriod = bill.lastPaidPeriod ? bill.lastPaidPeriod === (frequency === "weekly" ? "weekly:" + weekStartISO() : "monthly:" + currentMonth) : frequency === "monthly" && bill.lastPaidMonth === currentMonth; const currentWeekday = new Date(todayISO() + "T12:00:00").getDay(); const overdue = !paidThisPeriod && (frequency === "weekly" ? currentWeekday > weekday : Number(todayISO().slice(8, 10)) > bill.dueDay); const weekdays: Record<number, string> = {0:"domingo",1:"segunda-feira",2:"terça-feira",3:"quarta-feira",4:"quinta-feira",5:"sexta-feira",6:"sábado"}; return <div key={bill.id} className="flex flex-col gap-3 rounded-xl border border-blue-400/15 bg-[#080f1e] p-4 sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><p className="font-semibold">{bill.name}</p><p className="mt-1 text-xs text-slate-400">{bill.category} · {frequency === "weekly" ? "Toda " + weekdays[weekday] : "Todo dia " + bill.dueDay + " de cada mês"}</p><p className={"mt-1 text-xs " + (paidThisPeriod ? "text-emerald-300" : overdue ? "text-rose-300" : "text-amber-300")}>{paidThisPeriod ? (frequency === "weekly" ? "Pago nesta semana" : "Pago neste mês") : overdue ? "Vencimento passou — confira" : (frequency === "weekly" ? "Pendente nesta semana" : "Pendente neste mês")}</p></div><p className="text-lg font-bold">{money(bill.amount)}</p><div className="flex gap-2"><button disabled={paidThisPeriod} onClick={() => payBill(bill)} className="rounded-lg bg-emerald-600/15 px-3 py-2 text-xs font-semibold text-emerald-300 disabled:opacity-40">{paidThisPeriod ? "Já pago" : "Registrar pagamento"}</button><button aria-label="Excluir conta recorrente" onClick={() => setBills((current) => current.filter((b) => b.id !== bill.id))} className="rounded-lg border border-rose-500/20 px-3 py-2 text-xs text-rose-300"><Trash2 size={14} /></button></div></div> })}</div>
           </section>
 
-          <section id="backup-relatorios" className="scroll-mt-6 rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 sm:p-6">
+          <section id="backup-relatorios" className={activePage === "configuracoes" ? "scroll-mt-6 rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 sm:p-6" : "hidden"}>
             <div className="flex items-center gap-2 text-cyan-300"><ShieldCheck size={21} /><span className="text-xs font-bold uppercase tracking-[0.18em]">Proteção dos seus dados</span></div>
             <h3 className="mt-2 text-xl font-bold">Backup e relatórios</h3>
             <p className="mt-1 text-sm text-slate-400">Guarde uma cópia dos seus dados ou exporte suas movimentações para abrir em uma planilha.</p>
@@ -956,7 +956,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
             </div>
           </section>
 
-          <section id="minhas-dividas" className="scroll-mt-6 rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 shadow-[0_0_32px_rgba(8,145,178,0.08)] sm:p-6">
+          <section id="minhas-dividas" className={activePage === "dividas" ? "scroll-mt-6 rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 shadow-[0_0_32px_rgba(8,145,178,0.08)] sm:p-6" : "hidden"}>
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
               <div>
                 <div className="flex items-center gap-2 text-cyan-300"><BadgeDollarSign size={22} /><span className="text-xs font-bold uppercase tracking-[0.18em]">Organização pessoal</span></div>
