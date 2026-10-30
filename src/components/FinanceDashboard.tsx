@@ -706,34 +706,35 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
                 <p className="mt-3 max-w-md text-sm leading-6 text-slate-400">Uma visão moderna das suas finanças, com tudo organizado em um só lugar.</p>
                 <div className="mt-5 flex flex-wrap gap-3"><button onClick={() => openModal("entrada")} className="rounded-xl bg-gradient-to-r from-emerald-600 to-green-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition hover:scale-[1.02]"><ArrowDownLeft size={17} className="mr-2 inline"/>Nova entrada</button><button onClick={() => openModal("saida")} className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm font-bold text-rose-200 transition hover:bg-rose-500/20"><ArrowUpRight size={17} className="mr-2 inline"/>Nova saída</button></div>
               </div>
-              <div className="relative mx-auto flex w-full max-w-md items-center justify-center py-8" aria-label="Pizza futurista animada">
-                <div className="absolute h-64 w-64 animate-pulse rounded-full bg-orange-500/10 blur-3xl" />
-                <div className="absolute h-60 w-60 rounded-full border border-orange-300/20" />
-                <div className="absolute h-52 w-52 animate-[spin_24s_linear_infinite] rounded-full border-2 border-dashed border-cyan-300/30" />
-                <div className="absolute right-[8%] top-[7%] animate-bounce rounded-xl border border-emerald-300/25 bg-[#071b20]/95 px-3 py-2 text-xs font-bold text-emerald-300 shadow-lg">✦ + sabor</div>
-                <div className="absolute bottom-[12%] left-[0%] animate-[bounce_4s_infinite] rounded-xl border border-cyan-300/25 bg-[#0b1730]/95 px-3 py-2 text-xs font-bold text-cyan-200 shadow-lg">PIZZA • 3D</div>
+              <div className="relative mx-auto flex w-full max-w-md items-center justify-center py-8" aria-label="Medidor tecnológico de saldo financeiro">
+                <div className="absolute h-64 w-64 rounded-full bg-cyan-400/10 blur-3xl animate-pulse" />
+                <div className="absolute h-64 w-64 rounded-full border border-cyan-300/10" />
+                <div className="absolute h-60 w-60 animate-[spin_18s_linear_infinite] rounded-full border border-dashed border-cyan-300/30" />
+                <div className="absolute h-52 w-52 animate-[spin_12s_linear_infinite_reverse] rounded-full border-2 border-transparent border-t-violet-400/80 border-r-cyan-300/60" />
+                <div className="absolute h-44 w-44 rounded-full border border-blue-300/20 shadow-[0_0_50px_rgba(34,211,238,0.12)]" />
+                <div className="absolute right-[5%] top-[12%] animate-[float_4s_ease-in-out_infinite] rounded-xl border border-emerald-300/25 bg-[#071b20]/95 px-3 py-2 text-xs font-bold text-emerald-300 shadow-lg shadow-emerald-500/10">↗ SALDO POSITIVO</div>
+                <div className="absolute bottom-[12%] left-[0%] animate-[float_5s_ease-in-out_infinite] rounded-xl border border-cyan-300/25 bg-[#0b1730]/95 px-3 py-2 text-xs font-bold text-cyan-200 shadow-lg shadow-cyan-500/10">◉ FINANCE • LIVE</div>
                 <div className="relative flex h-56 w-56 animate-[float_5s_ease-in-out_infinite] items-center justify-center sm:h-64 sm:w-64">
-                  <div className="absolute inset-0 rounded-full border-[10px] border-[#a65b25] bg-gradient-to-br from-[#ffdf8a] via-[#e9a342] to-[#9b4d22] shadow-[0_0_40px_rgba(249,115,22,0.25)]" />
-                  <div className="absolute inset-[10px] rounded-full border-4 border-[#ffe7a4] bg-gradient-to-br from-[#f9c35b] via-[#f39a35] to-[#d86c25]" />
-                  <div className="absolute inset-[22px] overflow-hidden rounded-full border border-orange-100/40 bg-[radial-gradient(circle_at_30%_25%,#ffdc83,#f6a33b_55%,#c95c20)]">
-                    <div className="absolute left-[18%] top-[20%] h-8 w-8 rounded-full border-4 border-[#b84427] bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.35)]" />
-                    <div className="absolute right-[20%] top-[17%] h-8 w-8 rounded-full border-4 border-[#b84427] bg-rose-500" />
-                    <div className="absolute left-[40%] top-[42%] h-9 w-9 rounded-full border-4 border-[#b84427] bg-rose-500 shadow-[0_0_12px_rgba(244,63,94,0.3)]" />
-                    <div className="absolute bottom-[17%] left-[20%] h-8 w-8 rounded-full border-4 border-[#b84427] bg-rose-500" />
-                    <div className="absolute bottom-[18%] right-[17%] h-8 w-8 rounded-full border-4 border-[#b84427] bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.3)]" />
-                    <div className="absolute left-[28%] top-[45%] h-4 w-4 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.45)]" />
-                    <div className="absolute right-[28%] bottom-[30%] h-4 w-4 rounded-full bg-emerald-500" />
-                    <div className="absolute right-[20%] top-[42%] h-3 w-3 rounded-full bg-emerald-400" />
-                    <div className="absolute left-[43%] bottom-[17%] h-3 w-3 rounded-full bg-emerald-400" />
-                    <div className="absolute left-[12%] top-[48%] h-2 w-2 rounded-full bg-amber-100" />
+                  <div className="absolute inset-3 rounded-full bg-[#071426] shadow-[inset_0_0_35px_rgba(34,211,238,0.12),0_0_35px_rgba(59,130,246,0.16)]" />
+                  <svg viewBox="0 0 220 220" className="absolute inset-0 h-full w-full -rotate-90 drop-shadow-[0_0_8px_rgba(34,211,238,0.35)]" role="img" aria-label="Anel animado de saldo">
+                    <defs><linearGradient id="balanceRing" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#22d3ee"/><stop offset="55%" stopColor="#3b82f6"/><stop offset="100%" stopColor="#a78bfa"/></linearGradient></defs>
+                    <circle cx="110" cy="110" r="88" fill="none" stroke="#1e3a5f" strokeWidth="3" />
+                    <circle cx="110" cy="110" r="88" fill="none" stroke="url(#balanceRing)" strokeWidth="5" strokeLinecap="round" strokeDasharray="390 553" className="animate-[dash_3s_ease-out_both]" />
+                    <circle cx="110" cy="22" r="5" fill="#67e8f9" className="animate-pulse" />
+                  </svg>
+                  <div className="absolute inset-[22%] rounded-full border border-cyan-300/10 bg-gradient-to-br from-[#0c2038] via-[#081426] to-[#10102c]" />
+                  <div className="relative z-10 flex flex-col items-center px-2 text-center">
+                    <div className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-200/80"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400"/> Seu saldo</div>
+                    <div className={"max-w-[175px] break-words text-xl font-black tracking-tight sm:text-2xl " + (balance >= 0 ? "text-white" : "text-rose-300")}>{money(balance)}</div>
+                    <div className="mt-2 flex items-center gap-1 text-[10px] text-slate-400"><Activity size={12} className="text-cyan-300"/> atualizado em tempo real</div>
                   </div>
-                  <div className="absolute -right-2 top-[17%] h-4 w-4 animate-ping rounded-full bg-cyan-300/80" />
-                  <div className="absolute -left-1 bottom-[23%] h-3 w-3 animate-pulse rounded-full bg-violet-300" />
+                  <div className="absolute right-[15%] top-[24%] h-2 w-2 animate-ping rounded-full bg-violet-300/80" />
+                  <div className="absolute bottom-[22%] left-[14%] h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-200" />
                 </div>
-                <div className="absolute bottom-1 h-5 w-3/4 rounded-full bg-orange-400/15 blur-xl" />
+                <div className="absolute left-[15%] top-[12%] text-[10px] font-semibold tracking-[0.18em] text-slate-500">BALANCE.SYS</div>
+                <div className="absolute bottom-[8%] right-[12%] text-[10px] font-semibold tracking-[0.18em] text-slate-500">● ONLINE</div>
               </div>
-            </div>
-            <style>{`@keyframes float { 0%,100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-10px) rotate(1deg); } } @media (prefers-reduced-motion: reduce) { .animate-\\[float_5s_ease-in-out_infinite\\] { animation: none !important; } }`}</style>
+            <style>{`@keyframes float { 0%,100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-8px) rotate(1deg); } } @keyframes dash { from { stroke-dasharray: 0 553; } to { stroke-dasharray: 390 553; } } @media (prefers-reduced-motion: reduce) { .animate-\\[float_5s_ease-in-out_infinite\\], .animate-\\[spin_18s_linear_infinite\\], .animate-\\[spin_12s_linear_infinite_reverse\\] { animation: none !important; } }`}</style>
           </div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"><StatCard label="Entradas de hoje" value={money(todayIncome)} icon={<ArrowDownLeft size={20}/>} tint="green" caption={new Date(todayISO()+"T12:00:00").toLocaleDateString("pt-BR")}/><StatCard label="Saídas de hoje" value={money(todayExpenses)} icon={<ArrowUpRight size={20}/>} tint="red" caption={new Date(todayISO()+"T12:00:00").toLocaleDateString("pt-BR")}/><StatCard label="Saldo de hoje" value={money(todayIncome-todayExpenses)} icon={<Wallet size={20}/>} tint="blue" caption="Entradas menos saídas"/><StatCard label="Entradas do mês" value={money(monthIncome)} icon={<ArrowDownLeft size={20}/>} tint="green" caption="Total recebido"/><StatCard label="Saídas do mês" value={money(monthExpenses)} icon={<ArrowUpRight size={20}/>} tint="red" caption="Total gasto"/><StatCard label="Resultado do mês" value={money(monthIncome-monthExpenses)} icon={<Wallet size={20}/>} tint="blue" caption="Entradas menos saídas"/><StatCard label="Dívidas em aberto" value={money(debtTotal)} icon={<CreditCard size={20}/>} tint="purple" caption={unpaidDebts.length+" pendentes"}/></div></section>
           <section id="area-barbearia" className={activePage === "barbearia" ? "scroll-mt-6 rounded-2xl border border-cyan-400/25 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 sm:p-6" : "hidden"}>
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
