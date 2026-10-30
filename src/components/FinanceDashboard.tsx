@@ -707,28 +707,34 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
                 <p className="mt-3 max-w-md text-sm leading-6 text-slate-400">Uma visão moderna das suas finanças, com tudo organizado em um só lugar.</p>
                 <div className="mt-5 flex flex-wrap gap-3"><button onClick={() => openModal("entrada")} className="rounded-xl bg-gradient-to-r from-emerald-600 to-green-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/20 transition hover:scale-[1.02]"><ArrowDownLeft size={17} className="mr-2 inline"/>Nova entrada</button><button onClick={() => openModal("saida")} className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm font-bold text-rose-200 transition hover:bg-rose-500/20"><ArrowUpRight size={17} className="mr-2 inline"/>Nova saída</button></div>
               </div>
-              <div className="mx-auto grid w-full max-w-md gap-4 py-5 sm:grid-cols-2" aria-label="Resumo de entradas e saídas">
-                <div className="relative overflow-hidden rounded-2xl border border-emerald-400/20 bg-gradient-to-br from-emerald-950/70 to-slate-900 p-5 shadow-lg shadow-emerald-950/20">
-                  <div className="absolute -right-7 -top-7 h-24 w-24 rounded-full bg-emerald-400/10 blur-2xl" />
-                  <div className="relative flex items-center justify-between">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-400/10 text-emerald-300"><ArrowDownLeft size={21}/></div>
-                    <span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-[10px] font-semibold text-emerald-300">ENTRADAS</span>
+              <div className="mx-auto w-full max-w-xl space-y-3 py-5" aria-label="Resumo financeiro de entradas e saídas">
+                <div className="rounded-2xl border border-blue-400/20 bg-gradient-to-br from-[#101d33] to-[#0a1221] p-4 shadow-lg shadow-blue-950/20 sm:p-5">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Visão geral</p><h3 className="mt-1 text-lg font-bold text-white">Saldo total</h3></div>
+                    <div className={"rounded-xl p-3 " + (balance >= 0 ? "bg-cyan-400/10 text-cyan-300" : "bg-rose-400/10 text-rose-300")}><Wallet size={22}/></div>
                   </div>
-                  <p className="relative mt-5 text-sm font-medium text-slate-300">Total de entradas</p>
-                  <p className="relative mt-1 break-words text-2xl font-bold tracking-tight text-emerald-300">{money(income)}</p>
-                  <p className="relative mt-2 text-xs text-slate-400">Dinheiro que entrou no período</p>
-                  <div className="relative mt-4 h-1.5 overflow-hidden rounded-full bg-slate-700/70"><div className="h-full w-3/4 rounded-full bg-gradient-to-r from-emerald-500 to-teal-300" /></div>
+                  <p className={"text-3xl font-black tracking-tight " + (balance >= 0 ? "text-white" : "text-rose-300")}>{money(balance)}</p>
+                  <p className="mt-1 text-xs text-slate-400">Entradas menos saídas no período selecionado</p>
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/5 p-3"><p className="flex items-center gap-1.5 text-xs text-slate-400"><ArrowDownLeft size={14} className="text-emerald-300"/> Total de entradas</p><p className="mt-1 break-words text-lg font-bold text-emerald-300">{money(income)}</p></div>
+                    <div className="rounded-xl border border-rose-400/15 bg-rose-400/5 p-3"><p className="flex items-center gap-1.5 text-xs text-slate-400"><ArrowUpRight size={14} className="text-rose-300"/> Total de saídas</p><p className="mt-1 break-words text-lg font-bold text-rose-300">{money(expenses)}</p></div>
+                  </div>
                 </div>
-                <div className="relative overflow-hidden rounded-2xl border border-rose-400/20 bg-gradient-to-br from-rose-950/60 to-slate-900 p-5 shadow-lg shadow-rose-950/20">
-                  <div className="absolute -right-7 -top-7 h-24 w-24 rounded-full bg-rose-400/10 blur-2xl" />
-                  <div className="relative flex items-center justify-between">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-400/10 text-rose-300"><ArrowUpRight size={21}/></div>
-                    <span className="rounded-full bg-rose-400/10 px-2.5 py-1 text-[10px] font-semibold text-rose-300">SAÍDAS</span>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Hoje</p>
+                    <p className={"mt-2 text-xl font-bold " + (todayIncome-todayExpenses >= 0 ? "text-white" : "text-rose-300")}>{money(todayIncome-todayExpenses)}</p>
+                    <p className="mt-1 text-xs text-slate-500">Saldo de hoje</p>
+                    <div className="mt-3 flex flex-wrap justify-between gap-2 text-xs"><span className="text-emerald-300">↑ {money(todayIncome)}</span><span className="text-rose-300">↓ {money(todayExpenses)}</span></div>
+                    <div className="mt-1 flex justify-between text-[10px] text-slate-500"><span>Entradas</span><span>Saídas</span></div>
                   </div>
-                  <p className="relative mt-5 text-sm font-medium text-slate-300">Total de saídas</p>
-                  <p className="relative mt-1 break-words text-2xl font-bold tracking-tight text-rose-300">{money(expenses)}</p>
-                  <p className="relative mt-2 text-xs text-slate-400">Dinheiro que saiu no período</p>
-                  <div className="relative mt-4 h-1.5 overflow-hidden rounded-full bg-slate-700/70"><div className="h-full w-3/4 rounded-full bg-gradient-to-r from-rose-500 to-orange-300" /></div>
+                  <div className="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Este mês</p>
+                    <p className={"mt-2 text-xl font-bold " + (monthIncome-monthExpenses >= 0 ? "text-white" : "text-rose-300")}>{money(monthIncome-monthExpenses)}</p>
+                    <p className="mt-1 text-xs text-slate-500">Saldo mensal</p>
+                    <div className="mt-3 flex flex-wrap justify-between gap-2 text-xs"><span className="text-emerald-300">↑ {money(monthIncome)}</span><span className="text-rose-300">↓ {money(monthExpenses)}</span></div>
+                    <div className="mt-1 flex justify-between text-[10px] text-slate-500"><span>Entradas</span><span>Saídas</span></div>
+                  </div>
                 </div>
               </div>
           </div></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"><StatCard label="Entradas de hoje" value={money(todayIncome)} icon={<ArrowDownLeft size={20}/>} tint="green" caption={new Date(todayISO()+"T12:00:00").toLocaleDateString("pt-BR")}/><StatCard label="Saídas de hoje" value={money(todayExpenses)} icon={<ArrowUpRight size={20}/>} tint="red" caption={new Date(todayISO()+"T12:00:00").toLocaleDateString("pt-BR")}/><StatCard label="Saldo de hoje" value={money(todayIncome-todayExpenses)} icon={<Wallet size={20}/>} tint="blue" caption="Entradas menos saídas"/><StatCard label="Entradas do mês" value={money(monthIncome)} icon={<ArrowDownLeft size={20}/>} tint="green" caption="Total recebido"/><StatCard label="Saídas do mês" value={money(monthExpenses)} icon={<ArrowUpRight size={20}/>} tint="red" caption="Total gasto"/><StatCard label="Resultado do mês" value={money(monthIncome-monthExpenses)} icon={<Wallet size={20}/>} tint="blue" caption="Entradas menos saídas"/><StatCard label="Dívidas em aberto" value={money(debtTotal)} icon={<CreditCard size={20}/>} tint="purple" caption={unpaidDebts.length+" pendentes"}/></div></section>
