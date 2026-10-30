@@ -513,7 +513,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   function toggleDebtWorkDate(date: string) {
     setDebtSavings((current) => {
       const month = todayISO().slice(0, 7);
-      const [year, monthNumber] = month.split("-").map(Number);
+      const [year = 0, monthNumber = 1] = month.split("-").map(Number);
       const daysInMonth = new Date(year, monthNumber, 0).getDate();
       const defaults = Array.from({ length: daysInMonth }, (_, index) => {
         const day = index + 1;
