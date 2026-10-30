@@ -7,6 +7,7 @@ import {
   LayoutDashboard, ReceiptText, ChartNoAxesCombined, CreditCard, Banknote,
   Smartphone, ChevronDown, CheckCircle2, BadgeDollarSign, CalendarClock, CircleAlert, Check, HandCoins,
   Target, PiggyBank, Repeat, Download, Upload, FileSpreadsheet, Building2, Cloud, ShieldCheck, PlusCircle, LogOut
+  Activity,
 } from "lucide-react";
 import type { Json } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
@@ -50,7 +51,7 @@ type RecurringBill = {
   dueDay: number;
   dueWeekday?: number;
   lastPaidMonth?: string | undefined;
-  lastPaidPeriod?: string;
+  lastPaidPeriod?: string | undefined;
 };
 
 type Budget = {
