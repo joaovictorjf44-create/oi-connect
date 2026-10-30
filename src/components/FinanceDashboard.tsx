@@ -149,6 +149,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   const [bills, setBills] = useState<RecurringBill[]>([]);
   const [weeklySavings, setWeeklySavings] = useState<WeeklySavings>({ weekStart: weekStartISO(), saved: 0, workWeekdays: [1, 3, 4, 5, 6] });
   const [dailyDeposit, setDailyDeposit] = useState("");
+  const [weeklySavingsEdit, setWeeklySavingsEdit] = useState("");
   const [monthlySavings, setMonthlySavings] = useState<MonthlySavings>({ month: todayISO().slice(0, 7), saved: 0, workDays: 22 });
   const [debtSavings, setDebtSavings] = useState<DebtSavings>({ month: todayISO().slice(0, 7), saved: 0, workWeekdays: [1, 3, 4, 5, 6] });
   const [debtDeposit, setDebtDeposit] = useState("");
@@ -456,6 +457,14 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
     if (!Number.isFinite(value) || value <= 0) return;
     setWeeklySavings({ weekStart: weekStartISO(), saved: weeklySavingsCurrent + value, workWeekdays: weeklyWorkdaysSelected });
     setDailyDeposit("");
+  }
+
+  function updateWeeklySavingsTotal(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const value = Number(weeklySavingsEdit.replace(",", "."));
+    if (!Number.isFinite(value) || value < 0) return;
+    setWeeklySavings({ weekStart: weekStartISO(), saved: value, workWeekdays: weeklyWorkdaysSelected });
+    setWeeklySavingsEdit("");
   }
 
   const monthlyBillsTotal = bills.filter((bill) => { const periodKey = "monthly:" + currentMonth; const paidThisMonth = bill.lastPaidPeriod ? bill.lastPaidPeriod === periodKey : bill.lastPaidMonth === currentMonth; return (bill.frequency || "monthly") === "monthly" && !paidThisMonth; }).reduce((sum, bill) => sum + bill.amount, 0);
@@ -951,6 +960,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
               <label className="flex-1 text-sm text-slate-300">Quanto você guardou hoje? (R$)<input required min="0.01" step="0.01" type="number" value={dailyDeposit} onChange={(e) => setDailyDeposit(e.target.value)} placeholder="Ex.: 20,00" className="mt-1 w-full rounded-xl border border-emerald-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-emerald-400" /></label>
               <button type="submit" className="self-end rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white hover:bg-emerald-500"><Plus size={16} className="mr-1 inline" /> Somar valor guardado</button>
             </form>
+            <form onSubmit={updateWeeklySavingsTotal} className="mt-3 flex flex-col gap-3 rounded-xl border border-cyan-400/15 bg-[#080f1e] p-4 sm:flex-row sm:items-end"><label className="flex-1 text-sm text-slate-300">Corrigir total que já está guardado nesta semana (R$)<input type="number" min="0" step="0.01" required value={weeklySavingsEdit} onChange={(e) => setWeeklySavingsEdit(e.target.value)} placeholder={weeklySavingsCurrent.toFixed(2)} className="mt-1 w-full rounded-xl border border-cyan-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-cyan-400" /></label><button type="submit" className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-3 text-sm font-bold text-cyan-200 hover:bg-cyan-400/20">Atualizar valor guardado</button></form>
             {weeklyBillsTotal === 0 && <p className="mt-3 text-xs text-amber-200">Cadastre primeiro suas contas na seção “Contas recorrentes” e escolha a frequência “Semanal” para o cálculo automático funcionar.</p>}
             {weeklySavingsCurrent >= weeklyBillsTotal && weeklyBillsTotal > 0 && <p className="mt-3 text-sm font-semibold text-emerald-300">Meta semanal alcançada! Você já juntou o suficiente para as contas cadastradas.</p>}
           </section>
