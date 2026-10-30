@@ -114,6 +114,20 @@ const weekStartISO = () => {
 const weekEndISO = () => shiftISODate(weekStartISO(), 6);
 
 export function FinanceDashboard({ user }: { user: DashboardUser }) {
+  const [, setClockTick] = useState(0);
+  useEffect(() => {
+    const refreshDateDerivedViews = () => setClockTick((tick) => tick + 1);
+    const timer = window.setInterval(refreshDateDerivedViews, 60_000);
+    const handleVisibility = () => { if (document.visibilityState === "visible") refreshDateDerivedViews(); };
+    window.addEventListener("focus", refreshDateDerivedViews);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refreshDateDerivedViews);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, []);
+
   const [movements, setMovements] = useState<Movement[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [period, setPeriod] = useState<"today" | "week" | "month" | "all">("today");
