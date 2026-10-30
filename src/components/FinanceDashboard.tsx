@@ -473,7 +473,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   const monthlySavingsCurrent = monthlySavings.month === todayISO().slice(0, 7) ? monthlySavings.saved : 0;
   const monthlyWorkWeekdays = monthlySavings.workWeekdays?.length ? monthlySavings.workWeekdays : [1, 3, 4, 5, 6];
   const monthlyWorkDays = (() => {
-    const [year, month] = todayISO().slice(0, 7).split("-").map(Number);
+    const [year = 0, month = 1] = todayISO().slice(0, 7).split("-").map(Number);
     const daysInMonth = new Date(year, month, 0).getDate();
     let count = 0;
     for (let day = 1; day <= daysInMonth; day++) {
@@ -487,7 +487,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   const debtWorkWeekdays = debtSavings.workWeekdays?.length ? debtSavings.workWeekdays : [1, 3, 4, 5, 6];
   const debtSavingsRemaining = Math.max(0, debtTotal - debtSavingsCurrent);
   const debtCalendarDates = (() => {
-    const [year, month] = todayISO().slice(0, 7).split("-").map(Number);
+    const [year = 0, month = 1] = todayISO().slice(0, 7).split("-").map(Number);
     const daysInMonth = new Date(year, month, 0).getDate();
     return Array.from({ length: daysInMonth }, (_, index) => {
       const day = index + 1;
