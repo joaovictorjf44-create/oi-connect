@@ -444,7 +444,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
     setDailyDeposit("");
   }
 
-  const monthlyBillsTotal = bills.filter((bill) => (bill.frequency || "monthly") === "monthly").reduce((sum, bill) => sum + bill.amount, 0);
+  const monthlyBillsTotal = bills.filter((bill) => { const periodKey = "monthly:" + currentMonth; const paidThisMonth = bill.lastPaidPeriod ? bill.lastPaidPeriod === periodKey : bill.lastPaidMonth === currentMonth; return (bill.frequency || "monthly") === "monthly" && !paidThisMonth; }).reduce((sum, bill) => sum + bill.amount, 0);
   const monthlySavingsCurrent = monthlySavings.month === todayISO().slice(0, 7) ? monthlySavings.saved : 0;
   const monthlyWorkWeekdays = monthlySavings.workWeekdays?.length ? monthlySavings.workWeekdays : [1, 3, 4, 5, 6];
   const monthlyWorkDays = (() => {
