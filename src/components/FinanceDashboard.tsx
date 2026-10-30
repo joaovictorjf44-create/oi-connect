@@ -903,7 +903,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
             </div>
           </section>
 
-          <section id="juntar-contas-mensais" className={activePage === "metas" ? "scroll-mt-6 rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-[#101d30] to-[#0b1220] p-5 sm:p-6" : "hidden"}>
+          <section id="juntar-contas-mensais" className={activePage === "recorrentes" ? "scroll-mt-6 rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-[#101d30] to-[#0b1220] p-5 sm:p-6" : "hidden"}>
             <div className="flex items-center gap-2 text-cyan-300"><CalendarDays size={21} /><span className="text-xs font-bold uppercase tracking-[0.18em]">Planejamento mensal</span></div>
             <h3 className="mt-2 text-xl font-bold">Quanto juntar por mês e por dia trabalhado</h3>
             <p className="mt-1 text-sm text-slate-400">Somamos as contas cadastradas como mensais e dividimos pelos dias que você trabalha no mês. Você pode ajustar a quantidade de dias conforme sua rotina.</p>
@@ -935,7 +935,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
             {monthlySavingsCurrent >= monthlyBillsTotal && monthlyBillsTotal > 0 && <p className="mt-3 text-sm font-semibold text-emerald-300">Meta mensal alcançada! Você já juntou o suficiente para as contas cadastradas.</p>}
           </section>
 
-          <section id="juntar-contas-semanais" className={activePage === "metas" ? "scroll-mt-6 rounded-2xl border border-emerald-400/20 bg-gradient-to-br from-[#10251f] to-[#0b1220] p-5 sm:p-6" : "hidden"}>
+          <section id="juntar-contas-semanais" className={activePage === "recorrentes" ? "scroll-mt-6 rounded-2xl border border-emerald-400/20 bg-gradient-to-br from-[#10251f] to-[#0b1220] p-5 sm:p-6" : "hidden"}>
             <div className="flex items-center gap-2 text-emerald-300"><PiggyBank size={21} /><span className="text-xs font-bold uppercase tracking-[0.18em]">Planejamento semanal</span></div>
             <h3 className="mt-2 text-xl font-bold">Juntar dinheiro para as contas da semana</h3>
             <p className="mt-1 text-sm text-slate-400">O sistema soma suas contas cadastradas como semanais e calcula quanto separar por dia para cobrir esse total em 7 dias.</p>
