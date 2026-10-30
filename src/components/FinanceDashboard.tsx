@@ -6,7 +6,8 @@ import {
   CalendarDays, TrendingUp, TrendingDown, CircleDollarSign, X, Menu,
   LayoutDashboard, ReceiptText, ChartNoAxesCombined, CreditCard, Banknote,
   Smartphone, ChevronDown, CheckCircle2, BadgeDollarSign, CalendarClock, CircleAlert, Check, HandCoins,
-  Target, PiggyBank, Repeat, Download, Upload, FileSpreadsheet, Building2, Cloud, ShieldCheck, PlusCircle, LogOut
+  Target, PiggyBank, Repeat, Download, Upload, FileSpreadsheet, Building2, Cloud, ShieldCheck, PlusCircle, LogOut,
+  Activity,
 } from "lucide-react";
 import type { Json } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
@@ -50,7 +51,7 @@ type RecurringBill = {
   dueDay: number;
   dueWeekday?: number;
   lastPaidMonth?: string | undefined;
-  lastPaidPeriod?: string;
+  lastPaidPeriod?: string | undefined;
 };
 
 type Budget = {
@@ -473,7 +474,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   const monthlySavingsCurrent = monthlySavings.month === todayISO().slice(0, 7) ? monthlySavings.saved : 0;
   const monthlyWorkWeekdays = monthlySavings.workWeekdays?.length ? monthlySavings.workWeekdays : [1, 3, 4, 5, 6];
   const monthlyWorkDays = (() => {
-    const [year, month] = todayISO().slice(0, 7).split("-").map(Number);
+    const [year = 0, month = 1] = todayISO().slice(0, 7).split("-").map(Number);
     const daysInMonth = new Date(year, month, 0).getDate();
     let count = 0;
     for (let day = 1; day <= daysInMonth; day++) {
@@ -487,7 +488,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   const debtWorkWeekdays = debtSavings.workWeekdays?.length ? debtSavings.workWeekdays : [1, 3, 4, 5, 6];
   const debtSavingsRemaining = Math.max(0, debtTotal - debtSavingsCurrent);
   const debtCalendarDates = (() => {
-    const [year, month] = todayISO().slice(0, 7).split("-").map(Number);
+    const [year = 0, month = 1] = todayISO().slice(0, 7).split("-").map(Number);
     const daysInMonth = new Date(year, month, 0).getDate();
     return Array.from({ length: daysInMonth }, (_, index) => {
       const day = index + 1;
@@ -512,7 +513,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   function toggleDebtWorkDate(date: string) {
     setDebtSavings((current) => {
       const month = todayISO().slice(0, 7);
-      const [year, monthNumber] = month.split("-").map(Number);
+      const [year = 0, monthNumber = 1] = month.split("-").map(Number);
       const daysInMonth = new Date(year, monthNumber, 0).getDate();
       const defaults = Array.from({ length: daysInMonth }, (_, index) => {
         const day = index + 1;
@@ -735,7 +736,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
                 <div className="absolute bottom-[8%] right-[12%] text-[10px] font-semibold tracking-[0.18em] text-slate-500">● ONLINE</div>
               </div>
             <style>{`@keyframes float { 0%,100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-8px) rotate(1deg); } } @keyframes dash { from { stroke-dasharray: 0 553; } to { stroke-dasharray: 390 553; } } @media (prefers-reduced-motion: reduce) { .animate-\\[float_5s_ease-in-out_infinite\\], .animate-\\[spin_18s_linear_infinite\\], .animate-\\[spin_12s_linear_infinite_reverse\\] { animation: none !important; } }`}</style>
-          </div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"><StatCard label="Entradas de hoje" value={money(todayIncome)} icon={<ArrowDownLeft size={20}/>} tint="green" caption={new Date(todayISO()+"T12:00:00").toLocaleDateString("pt-BR")}/><StatCard label="Saídas de hoje" value={money(todayExpenses)} icon={<ArrowUpRight size={20}/>} tint="red" caption={new Date(todayISO()+"T12:00:00").toLocaleDateString("pt-BR")}/><StatCard label="Saldo de hoje" value={money(todayIncome-todayExpenses)} icon={<Wallet size={20}/>} tint="blue" caption="Entradas menos saídas"/><StatCard label="Entradas do mês" value={money(monthIncome)} icon={<ArrowDownLeft size={20}/>} tint="green" caption="Total recebido"/><StatCard label="Saídas do mês" value={money(monthExpenses)} icon={<ArrowUpRight size={20}/>} tint="red" caption="Total gasto"/><StatCard label="Resultado do mês" value={money(monthIncome-monthExpenses)} icon={<Wallet size={20}/>} tint="blue" caption="Entradas menos saídas"/><StatCard label="Dívidas em aberto" value={money(debtTotal)} icon={<CreditCard size={20}/>} tint="purple" caption={unpaidDebts.length+" pendentes"}/></div></section>
+          </div></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"><StatCard label="Entradas de hoje" value={money(todayIncome)} icon={<ArrowDownLeft size={20}/>} tint="green" caption={new Date(todayISO()+"T12:00:00").toLocaleDateString("pt-BR")}/><StatCard label="Saídas de hoje" value={money(todayExpenses)} icon={<ArrowUpRight size={20}/>} tint="red" caption={new Date(todayISO()+"T12:00:00").toLocaleDateString("pt-BR")}/><StatCard label="Saldo de hoje" value={money(todayIncome-todayExpenses)} icon={<Wallet size={20}/>} tint="blue" caption="Entradas menos saídas"/><StatCard label="Entradas do mês" value={money(monthIncome)} icon={<ArrowDownLeft size={20}/>} tint="green" caption="Total recebido"/><StatCard label="Saídas do mês" value={money(monthExpenses)} icon={<ArrowUpRight size={20}/>} tint="red" caption="Total gasto"/><StatCard label="Resultado do mês" value={money(monthIncome-monthExpenses)} icon={<Wallet size={20}/>} tint="blue" caption="Entradas menos saídas"/><StatCard label="Dívidas em aberto" value={money(debtTotal)} icon={<CreditCard size={20}/>} tint="purple" caption={unpaidDebts.length+" pendentes"}/></div></section>
           <section id="area-barbearia" className={activePage === "barbearia" ? "scroll-mt-6 rounded-2xl border border-cyan-400/25 bg-gradient-to-br from-[#111c30] to-[#0b1220] p-5 sm:p-6" : "hidden"}>
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
               <div>
