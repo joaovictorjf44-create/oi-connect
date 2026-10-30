@@ -430,7 +430,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
     setGoalName(""); setGoalTarget(""); setGoalSaved("0");
   }
 
-  const weeklyBillsTotal = bills.filter((bill) => (bill.frequency || "monthly") === "weekly").reduce((sum, bill) => sum + bill.amount, 0);
+  const weeklyBillsTotal = bills.filter((bill) => (bill.frequency || "monthly") === "weekly" && bill.lastPaidPeriod !== "weekly:" + weekStartISO()).reduce((sum, bill) => sum + bill.amount, 0);
   const weeklySavingsCurrent = weeklySavings.weekStart === weekStartISO() ? weeklySavings.saved : 0;
   const weeklyWorkdaysSelected = weeklySavings.workWeekdays?.length ? weeklySavings.workWeekdays : [1, 3, 4, 5, 6];
   const weeklyDailyTarget = weeklyBillsTotal / Math.max(1, weeklyWorkdaysSelected.length);
