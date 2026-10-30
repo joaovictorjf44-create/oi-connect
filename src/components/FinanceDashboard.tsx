@@ -713,8 +713,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
                     <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Visão geral</p><h3 className="mt-1 text-lg font-bold text-white">Saldo total</h3></div>
                     <div className={"rounded-xl p-3 " + (balance >= 0 ? "bg-cyan-400/10 text-cyan-300" : "bg-rose-400/10 text-rose-300")}><Wallet size={22}/></div>
                   </div>
-                  <p className={"text-3xl font-black tracking-tight " + (balance >= 0 ? "text-white" : "text-rose-300")}>{money(balance)}</p>
-                  <p className="mt-1 text-xs text-slate-400">Entradas menos saídas no período selecionado</p>
+                  <BalancePizza income={income} expenses={expenses} balance={balance} />
                   <div className="mt-4 grid grid-cols-2 gap-3">
                     <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/5 p-3"><p className="flex items-center gap-1.5 text-xs text-slate-400"><ArrowDownLeft size={14} className="text-emerald-300"/> Total de entradas</p><p className="mt-1 break-words text-lg font-bold text-emerald-300">{money(income)}</p></div>
                     <div className="rounded-xl border border-rose-400/15 bg-rose-400/5 p-3"><p className="flex items-center gap-1.5 text-xs text-slate-400"><ArrowUpRight size={14} className="text-rose-300"/> Total de saídas</p><p className="mt-1 break-words text-lg font-bold text-rose-300">{money(expenses)}</p></div>
@@ -1221,6 +1220,56 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
       </div>}
     </div>
   );
+}
+
+function BalancePizza({ income, expenses, balance }: { income: number; expenses: number; balance: number }) {
+  const [shownBalance, setShownBalance] = useState(0);
+  const [animated, setAnimated] = useState(false);
+  useEffect(() => {
+    setShownBalance(0);
+    setAnimated(false);
+    const startTimer = window.setTimeout(() => setAnimated(true), 80);
+    const duration = 1400;
+    const start = performance.now();
+    let frame = 0;
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setShownBalance(balance * eased);
+      if (progress < 1) frame = window.requestAnimationFrame(tick);
+    };
+    const animationTimer = window.setTimeout(() => { frame = window.requestAnimationFrame(tick); }, 100);
+    return () => { window.clearTimeout(startTimer); window.clearTimeout(animationTimer); window.cancelAnimationFrame(frame); };
+  }, [balance, income, expenses]);
+  const total = income + expenses;
+  const incomeShare = total > 0 ? (income / total) * 100 : 50;
+  const expenseShare = total > 0 ? (expenses / total) * 100 : 50;
+  return <div className="mt-4 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+    <div className="relative flex h-48 w-48 shrink-0 items-center justify-center">
+      <div className="absolute inset-0 rounded-full bg-cyan-400/10 blur-2xl" />
+      <div className="absolute inset-1 rounded-full border border-cyan-300/15" />
+      <div className="absolute inset-0 animate-[spin_16s_linear_infinite] rounded-full border border-dashed border-blue-300/25" />
+      <div className="absolute inset-3 rounded-full p-[7px] shadow-[0_0_28px_rgba(34,211,238,0.14)] transition-transform duration-700" style={{ background: animated ? `conic-gradient(from -90deg, #34d399 0% ${incomeShare}%, #fb7185 ${incomeShare}% 100%)` : "conic-gradient(#1e293b 0% 100%)" }}>
+        <div className="flex h-full w-full flex-col items-center justify-center rounded-full border border-white/5 bg-[#0b1425] text-center shadow-inner">
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Saldo total</span>
+          <span className={"mt-2 max-w-[145px] break-words px-1 text-xl font-black tracking-tight " + (balance >= 0 ? "text-white" : "text-rose-300")}>{money(shownBalance)}</span>
+          <span className="mt-1 text-[10px] text-slate-500">Entradas − saídas</span>
+        </div>
+      </div>
+      <div className="absolute right-2 top-5 h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(52,211,153,0.8)]" />
+      <div className="absolute bottom-5 left-2 h-2 w-2 animate-pulse rounded-full bg-rose-300 shadow-[0_0_12px_rgba(251,113,133,0.8)]" />
+    </div>
+    <div className="w-full space-y-3 sm:max-w-[210px]">
+      <div className="rounded-xl border border-emerald-400/15 bg-emerald-400/5 p-3">
+        <p className="flex items-center gap-2 text-xs text-slate-400"><span className="h-2.5 w-2.5 rounded-full bg-emerald-400"/>Entradas</p>
+        <p className="mt-1 text-lg font-bold text-emerald-300">{money(income)}</p>
+      </div>
+      <div className="rounded-xl border border-rose-400/15 bg-rose-400/5 p-3">
+        <p className="flex items-center gap-2 text-xs text-slate-400"><span className="h-2.5 w-2.5 rounded-full bg-rose-400"/>Saídas</p>
+        <p className="mt-1 text-lg font-bold text-rose-300">{money(expenses)}</p>
+      </div>
+    </div>
+  </div>;
 }
 
 function StatCard({ label, value, icon, tint, caption }: { label: string; value: string; icon: React.ReactNode; tint: string; caption: string }) {
