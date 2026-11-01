@@ -60,6 +60,8 @@ type Budget = {
   limit: number;
 };
 
+type Loan = { id: string; person: string; amount: number; date: string; dueDate: string; note?: string; returned: boolean; };
+
 const STORAGE_KEY = "gestao-financeira-pra-mim-movements";
 const DEBTS_STORAGE_KEY = "gestao-financeira-pra-mim-debts";
 const GOALS_STORAGE_KEY = "gestao-financeira-pra-mim-goals";
@@ -74,7 +76,7 @@ const userCacheKey = (userId: string) => "gestao-financeira-pra-mim-cache-" + us
 type WeeklySavings = { weekStart: string; saved: number; workWeekdays?: number[] };
 type MonthlySavings = { month: string; saved: number; workDays: number; workWeekdays?: number[] };
 type DebtSavings = { month: string; saved: number; workWeekdays?: number[]; workDates?: string[] };
-type FinanceData = { movements?: Movement[] | undefined; debts?: Debt[] | undefined; goals?: SavingsGoal[] | undefined; bills?: RecurringBill[] | undefined; budgets?: Budget[] | undefined; accounts?: string[] | undefined; openingBalances?: Record<string, number> | undefined; weeklySavings?: WeeklySavings | undefined; monthlySavings?: MonthlySavings | undefined; debtSavings?: DebtSavings | undefined };
+type FinanceData = { movements?: Movement[] | undefined; debts?: Debt[] | undefined; loans?: Loan[] | undefined; goals?: SavingsGoal[] | undefined; bills?: RecurringBill[] | undefined; budgets?: Budget[] | undefined; accounts?: string[] | undefined; openingBalances?: Record<string, number> | undefined; weeklySavings?: WeeklySavings | undefined; monthlySavings?: MonthlySavings | undefined; debtSavings?: DebtSavings | undefined };
 export type DashboardUser = { id: string; email?: string | null };
 
 function readLegacyLocalData(): FinanceData {
@@ -143,6 +145,12 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   const [mobileMenu, setMobileMenu] = useState(false);
   const [activePage, setActivePage] = useState("inicio");
   const [debts, setDebts] = useState<Debt[]>([]);
+  const [loans, setLoans] = useState<Loan[]>([]);
+  const [loanPerson, setLoanPerson] = useState("");
+  const [loanAmount, setLoanAmount] = useState("");
+  const [loanDate, setLoanDate] = useState(todayISO());
+  const [loanDueDate, setLoanDueDate] = useState("");
+  const [loanNote, setLoanNote] = useState("");
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
   const [goalName, setGoalName] = useState("");
   const [goalTarget, setGoalTarget] = useState("");
@@ -243,9 +251,9 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   useEffect(() => {
     if (!loaded || cloudSyncedUser !== user.id) return;
     try {
-      localStorage.setItem(userCacheKey(user.id), JSON.stringify({ movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings, debtSavings }));
+      localStorage.setItem(userCacheKey(user.id), JSON.stringify({ movements, debts, loans, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings, debtSavings }));
     } catch { /* armazenamento cheio ou bloqueado */ }
-  }, [movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings, debtSavings, loaded, cloudSyncedUser, user.id]);
+  }, [movements, debts, loans, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings, debtSavings, loaded, cloudSyncedUser, user.id]);
 
   const filtered = useMemo(() => movements.filter((item) => {
     const matchesPeriod = period === "today" ? item.date === todayISO()
@@ -333,6 +341,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   function applyData(data: FinanceData) {
     setMovements(Array.isArray(data.movements) ? data.movements : []);
     setDebts(Array.isArray(data.debts) ? data.debts : []);
+    setLoans(Array.isArray(data.loans) ? data.loans : []);
     setGoals(Array.isArray(data.goals) ? data.goals : []);
     setBills(Array.isArray(data.bills) ? data.bills : []);
     setBudgets(Array.isArray(data.budgets) ? data.budgets : []);
@@ -360,7 +369,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
         applyData(row.data as unknown as FinanceData);
         setCloudMessage("Dados recuperados da sua conta.");
       } else {
-        await saveToCloud({ movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings, debtSavings });
+        await saveToCloud({ movements, debts, loans, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings, debtSavings });
         setCloudMessage("Seus dados atuais foram salvos na sua conta.");
       }
       setCloudSyncedUser(user.id);
@@ -384,7 +393,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
     if (!loaded || cloudSyncedUser !== user.id) return;
     const timer = window.setTimeout(() => { void pushCloudChanges(true); }, 1200);
     return () => window.clearTimeout(timer);
-  }, [loaded, cloudSyncedUser, user.id, movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings, debtSavings]);
+  }, [loaded, cloudSyncedUser, user.id, movements, debts, loans, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings, debtSavings]);
 
   async function logoutCloud() {
     if (cloudSyncedUser === user.id) {
@@ -408,17 +417,18 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
   }
 
   function exportBackup() {
-    const backup = { app: "Gestão Financeira pra Mim", version: 1, exportedAt: new Date().toISOString(), movements, debts, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings, debtSavings };
+    const backup = { app: "Gestão Financeira pra Mim", version: 1, exportedAt: new Date().toISOString(), movements, debts, loans, goals, bills, budgets, accounts, openingBalances, weeklySavings, monthlySavings, debtSavings };
     downloadFile("backup-gestao-financeira.json", JSON.stringify(backup, null, 2), "application/json");
   }
 
   async function importBackup(file?: File) {
     if (!file) return;
     try {
-      const data = JSON.parse(await file.text()) as Partial<{ movements: Movement[]; debts: Debt[]; goals: SavingsGoal[]; bills: RecurringBill[]; budgets: Budget[]; accounts: string[]; openingBalances: Record<string, number>; weeklySavings: WeeklySavings; monthlySavings: MonthlySavings; debtSavings: DebtSavings }>;
+      const data = JSON.parse(await file.text()) as Partial<{ movements: Movement[]; debts: Debt[]; loans: Loan[]; goals: SavingsGoal[]; bills: RecurringBill[]; accounts: string[]; openingBalances: Record<string, number>; weeklySavings: WeeklySavings; monthlySavings: MonthlySavings; debtSavings: DebtSavings }>;
       if (!Array.isArray(data.movements) || !Array.isArray(data.debts)) throw new Error("Arquivo inválido");
       setMovements(data.movements);
       setDebts(data.debts);
+      setLoans(Array.isArray(data.loans) ? data.loans : []);
       setGoals(Array.isArray(data.goals) ? data.goals : []);
       setBills(Array.isArray(data.bills) ? data.bills : []);
       setBudgets(Array.isArray(data.budgets) ? data.budgets : []);
@@ -603,6 +613,14 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
     setNote("");
   }
 
+  function saveLoan(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const value = Number(loanAmount.replace(",", "."));
+    if (!loanPerson.trim() || !Number.isFinite(value) || value <= 0 || !loanDate) return;
+    setLoans((current) => [{ id: crypto.randomUUID(), person: loanPerson.trim(), amount: value, date: loanDate, dueDate: loanDueDate, note: loanNote.trim() || undefined, returned: false }, ...current]);
+    setLoanPerson(""); setLoanAmount(""); setLoanDate(todayISO()); setLoanDueDate(""); setLoanNote("");
+  }
+
   function saveDebt(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const numericAmount = Number(debtAmount.replace(",", "."));
@@ -681,6 +699,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
           <button onClick={() => { setActivePage("metas"); setMobileMenu(false); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><Target size={19} /> Metas e orçamento</button>
           <button onClick={() => { setActivePage("recorrentes"); setMobileMenu(false); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><Repeat size={19} /> Contas recorrentes</button>
           <button onClick={() => { setActivePage("dividas"); setMobileMenu(false); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><BadgeDollarSign size={19} /> Minhas dívidas <span className="ml-auto rounded-full bg-blue-500/15 px-2 py-0.5 text-xs text-cyan-300">{unpaidDebts.length}</span></button>
+          <button onClick={() => { setActivePage("emprestimos"); setMobileMenu(false); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-amber-200 hover:bg-slate-800"><HandCoins size={19} /> Dinheiro emprestado <span className="ml-auto rounded-full bg-amber-500/15 px-2 py-0.5 text-xs text-amber-200">{loans.filter((item) => !item.returned).length}</span></button>
           <button onClick={() => { setActivePage("configuracoes"); setMobileMenu(false); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-slate-300 hover:bg-slate-800"><ShieldCheck size={19} /> Configurações e backup</button>
         </nav>
       </aside>
@@ -689,7 +708,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
         <header className="flex items-center justify-between border-b border-blue-400/15 bg-[#080f1e]/90 backdrop-blur-xl px-4 py-4 sm:px-8">
           <div className="flex items-center gap-3">
             <button className="rounded-lg p-2 hover:bg-[#182235] lg:hidden" onClick={() => setMobileMenu(true)} aria-label="Abrir menu"><Menu size={21} /></button>
-            <div><p className="text-sm font-semibold tracking-[0.18em] text-cyan-300">✦ SUA VIDA FINANCEIRA, SOB CONTROLE</p><h1 className="text-xl font-bold tracking-tight sm:text-2xl">{({ inicio: "Painel inicial", barbearia: "Minha Barbearia", movimentacoes: "Movimentações", entradas: "Entradas", saidas: "Saídas", relatorios: "Relatórios", contas: "Contas e saldos", metas: "Metas e planejamento", recorrentes: "Contas recorrentes", dividas: "Minhas dívidas", configuracoes: "Configurações e backup" } as Record<string, string>)[activePage] || "Painel inicial"}</h1></div>
+            <div><p className="text-sm font-semibold tracking-[0.18em] text-cyan-300">✦ SUA VIDA FINANCEIRA, SOB CONTROLE</p><h1 className="text-xl font-bold tracking-tight sm:text-2xl">{({ inicio: "Painel inicial", barbearia: "Minha Barbearia", movimentacoes: "Movimentações", entradas: "Entradas", saidas: "Saídas", relatorios: "Relatórios", contas: "Contas e saldos", metas: "Metas e planejamento", recorrentes: "Contas recorrentes", dividas: "Minhas dívidas", emprestimos: "Dinheiro emprestado", configuracoes: "Configurações e backup" } as Record<string, string>)[activePage] || "Painel inicial"}</h1></div>
           </div>
           <div className="flex items-center gap-2">
             <div className="hidden items-center gap-2 rounded-xl border border-blue-400/20 bg-[#0b1220]/70 px-3 py-2 text-sm text-slate-300 md:flex"><CalendarDays size={16} /> {new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}</div>
@@ -1045,6 +1064,32 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
               </div>
               {cloudMessage && <p className="mt-3 text-sm text-cyan-300" role="status">{cloudMessage}</p>}
               <p className="mt-3 text-xs text-slate-500">“Sincronizar / recuperar” carrega a versão salva na sua conta. Evite editar ao mesmo tempo em dois aparelhos. Faça backup antes de restaurar um arquivo.</p>
+            </div>
+          </section>
+
+          <section id="dinheiro-emprestado" className={activePage === "emprestimos" ? "scroll-mt-6 rounded-2xl border border-amber-400/20 bg-gradient-to-br from-[#211b10] to-[#0b1220] p-5 sm:p-6" : "hidden"}>
+            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+              <div><div className="flex items-center gap-2 text-amber-300"><HandCoins size={22}/><span className="text-xs font-bold uppercase tracking-[0.18em]">Controle de empréstimos</span></div><h3 className="mt-2 text-2xl font-bold">Dinheiro que emprestei</h3><p className="mt-1 text-sm text-slate-400">Registre para quem emprestou, o valor e quando espera receber.</p></div>
+              <div className="rounded-xl border border-amber-400/20 bg-[#17140e] px-4 py-3"><p className="text-xs text-slate-400">Falta receber</p><p className="mt-1 text-2xl font-bold text-amber-300">{money(loans.filter((item) => !item.returned).reduce((sum, item) => sum + item.amount, 0))}</p></div>
+            </div>
+            <form onSubmit={saveLoan} className="mt-5 rounded-xl border border-amber-400/15 bg-[#080f1e]/80 p-4 sm:p-5">
+              <h4 className="mb-4 flex items-center gap-2 font-semibold text-white"><Plus size={18} className="text-amber-300"/> Registrar empréstimo</h4>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <label className="block text-sm text-slate-300">Nome da pessoa *<input required value={loanPerson} onChange={(e) => setLoanPerson(e.target.value)} placeholder="Nome de quem recebeu" className="mt-1.5 w-full rounded-xl border border-amber-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-amber-400"/></label>
+                <label className="block text-sm text-slate-300">Valor emprestado (R$) *<input required min="0.01" step="0.01" type="number" value={loanAmount} onChange={(e) => setLoanAmount(e.target.value)} placeholder="150,00" className="mt-1.5 w-full rounded-xl border border-amber-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-amber-400"/></label>
+                <label className="block text-sm text-slate-300">Data do empréstimo *<input required type="date" value={loanDate} onChange={(e) => setLoanDate(e.target.value)} className="mt-1.5 w-full rounded-xl border border-amber-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-amber-400"/></label>
+                <label className="block text-sm text-slate-300">Data combinada para receber<input type="date" value={loanDueDate} onChange={(e) => setLoanDueDate(e.target.value)} className="mt-1.5 w-full rounded-xl border border-amber-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-amber-400"/></label>
+                <label className="block text-sm text-slate-300 sm:col-span-2">Observação<input value={loanNote} onChange={(e) => setLoanNote(e.target.value)} placeholder="Ex.: vai devolver em duas vezes" className="mt-1.5 w-full rounded-xl border border-amber-400/20 bg-[#050914] px-3 py-3 outline-none focus:border-amber-400"/></label>
+              </div>
+              <button type="submit" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-amber-500 px-5 py-3 text-sm font-bold text-[#17140e] hover:bg-amber-400"><Plus size={17}/> Salvar empréstimo</button>
+            </form>
+            <div className="mt-6"><div className="mb-3 flex items-center justify-between"><h4 className="font-bold text-white">Lista de empréstimos</h4><span className="text-xs text-slate-400">{loans.length} cadastrado(s)</span></div>
+              {loans.length === 0 ? <div className="rounded-xl border border-dashed border-amber-400/20 px-4 py-9 text-center"><HandCoins size={24} className="mx-auto mb-3 text-amber-300"/><p className="font-semibold">Nenhum empréstimo cadastrado</p><p className="mt-1 text-sm text-slate-500">Se emprestar dinheiro, registre aqui para acompanhar.</p></div> :
+                <div className="space-y-3">{loans.slice().sort((a,b) => b.date.localeCompare(a.date)).map((item) => { const overdue = !item.returned && item.dueDate && item.dueDate < todayISO(); return <div key={item.id} className={`flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center ${item.returned ? "border-emerald-500/20 bg-emerald-950/10" : overdue ? "border-rose-400/30 bg-rose-950/10" : "border-amber-400/15 bg-[#080f1e]/80"}`}>
+                  <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className={`font-semibold ${item.returned ? "text-slate-400 line-through" : "text-white"}`}>{item.person}</p><span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${item.returned ? "bg-emerald-500/10 text-emerald-300" : overdue ? "bg-rose-500/10 text-rose-300" : "bg-amber-500/10 text-amber-200"}`}>{item.returned ? "Devolvido" : overdue ? "Atrasado" : "A receber"}</span></div>
+                  <p className="mt-1 text-xs text-slate-400">Emprestado em {new Date(item.date + "T12:00:00").toLocaleDateString("pt-BR")}{item.dueDate ? ` · Combinado para ${new Date(item.dueDate + "T12:00:00").toLocaleDateString("pt-BR")}` : ""}</p>{item.note && <p className="mt-1 text-xs text-slate-500">{item.note}</p>}</div>
+                  <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end"><p className={`text-lg font-bold ${item.returned ? "text-emerald-300" : "text-amber-200"}`}>{money(item.amount)}</p><div className="flex gap-2"><button type="button" onClick={() => setLoans((current) => current.map((loan) => loan.id === item.id ? { ...loan, returned: !loan.returned } : loan))} className={`rounded-lg px-3 py-2 text-xs font-semibold ${item.returned ? "border border-slate-700 text-slate-300" : "bg-emerald-600/15 text-emerald-300"}`}>{item.returned ? "Reabrir" : "Marcar devolvido"}</button><button type="button" aria-label={`Excluir empréstimo de ${item.person}`} onClick={() => setLoans((current) => current.filter((loan) => loan.id !== item.id))} className="rounded-lg border border-rose-500/20 px-3 py-2 text-xs font-semibold text-rose-300"><Trash2 size={14}/></button></div></div>
+                </div>; })}</div>}
             </div>
           </section>
 
