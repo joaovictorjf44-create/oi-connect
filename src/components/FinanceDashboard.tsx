@@ -679,7 +679,7 @@ export function FinanceDashboard({ user }: { user: DashboardUser }) {
 
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_right,_rgba(29,78,216,0.16),_transparent_40%),linear-gradient(135deg,#050914_0%,#080f1e_50%,#070b14_100%)] text-slate-100">
-      <aside className={`fixed inset-y-0 left-0 z-30 w-64 border-r border-slate-800 bg-[#080d18] p-5 text-slate-100 transition-transform lg:translate-x-0 ${mobileMenu ? "translate-x-0" : "-translate-x-full"}`}>
+      <aside className={`fixed inset-y-0 left-0 z-30 flex h-[100dvh] w-64 flex-col overflow-y-auto overscroll-y-contain border-r border-slate-800 bg-[#080d18] p-5 pb-8 text-slate-100 transition-transform [-webkit-overflow-scrolling:touch] lg:translate-x-0 ${mobileMenu ? "translate-x-0" : "-translate-x-full"}`} style={{ scrollbarWidth: "thin" }}>
         <div className="mb-10 flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 text-white"><Scissors size={22} /></div>
           <div><p className="bg-gradient-to-r from-white to-cyan-200 bg-clip-text font-bold tracking-tight text-transparent">Gestão Financeira</p><p className="text-xs text-slate-400">pra mim · barbearia</p></div>
